@@ -13,24 +13,45 @@ class CVRP():
         self.nodes = nodes
         self.links = links
         self.vehicles = vehicles
-        self.diensions = dimensions
+        self.dimensions = dimensions
         self.boxes = boxes
+        self.stages = [i for i in range(len(nodes))]
 
         self.model = gp.Model(name)
 
+        # Create decision variables
+        self.decision_variables()
+        self.ObjectiveFunc()
 
+    def decision_variables(self):
+        '''
+        Create decision variables to be optimized
+        '''
+
+        # Binary decision variables \(d_{kl}^{tv}\)
+        self.x = self.model.addVars(self.nodes, self.nodes, self.vehicles, self.stages,
+                                    vtype=GRB.BINARY,
+                                    name='d')
     def ObjectiveFunc(self):
         '''
         Takes link cost and routing decision variables and creates the objective function
         '''
-        objective = gp.quicksum(links)
+        objective = gp.quicksum(self.links[i, j]["distance"] * self.x[i, j, v, t]
+                                for i, j in self.links
+                                for v in self.vehicles
+                                for t in self.stages)
+
+        self.model.setObjective(objective, GRB.MINIMIZE)
 
 # Make results reproducable for the time being
 np.random.seed(0)
-nodes = [0, 1, 2, 3]
+
+# Depot (1) and customer nodes (2..., n)
+nodes = [1, 2, 3, 4]
 
 # Generate links from each node to each other node with random distances, might need to change to account for depot
-links = {(i, j): {"distance": np.random.randint(10, 50)} for i in nodes for j in nodes if i != j}
+# Infinity if link goes to itself in accordance with the paper
+links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
 
 # Vehicle IDs
 vehicles = [0, 1]
@@ -42,3 +63,11 @@ dimensions = {"length": 10, "width": 5, "height": 5}
 boxes = {"box1": [1, 1, 1]}
 
 problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes)
+
+problem.model.optimize()
+
+if problem.model.status == GRB.OPTIMAL:
+    print("\nActive decision variables (x[i,j,v,t] = 1):")
+    for i, j, v, t in problem.x.keys():
+        if problem.x[i, j, v, t].X > 0.5:  # X gives the value after optimization
+            print(f"Vehicle {v} travels from node {i} to {j} at stage {t}")
