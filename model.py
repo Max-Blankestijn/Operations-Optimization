@@ -1,30 +1,44 @@
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
-
-
 import gurobipy as gp
 from gurobipy import GRB
 
-# Create a new model
-model = gp.Model("simple_linear_program")
+class CVRP():
+    '''
+    class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
+    '''
+    def __init__(self, name, nodes, links, vehicles, dimensions, boxes):
+        # Actual way to represent these inputs to be determined
+        self.nodes = nodes
+        self.links = links
+        self.vehicles = vehicles
+        self.diensions = dimensions
+        self.boxes = boxes
 
-# Create variables
-x = model.addVar(name="x", lb=0)  # x >= 0
-y = model.addVar(name="y", lb=0)  # y >= 0
+        self.model = gp.Model(name)
 
-# Set objective: maximize 3x + 4y
-model.setObjective(3 * x + 4 * y, GRB.MAXIMIZE)
 
-# Add constraints
-model.addConstr(2 * x + y <= 8, name="c1")
-model.addConstr(x + 2 * y <= 8, name="c2")
+    def ObjectiveFunc(self):
+        '''
+        Takes link cost and routing decision variables and creates the objective function
+        '''
+        objective = gp.quicksum(links)
 
-# Optimize the model
-model.optimize()
+# Make results reproducable for the time being
+np.random.seed(0)
+nodes = [0, 1, 2, 3]
 
-# Display results
-if model.status == GRB.OPTIMAL:
-    print(f"Optimal objective value: {model.objVal}")
-    for v in model.getVars():
-        print(f"{v.varName} = {v.x}")
+# Generate links from each node to each other node with random distances, might need to change to account for depot
+links = {(i, j): {"distance": np.random.randint(10, 50)} for i in nodes for j in nodes if i != j}
+
+# Vehicle IDs
+vehicles = [0, 1]
+
+# Dimensions of vehicles, identical for each vehicle
+dimensions = {"length": 10, "width": 5, "height": 5}
+
+# Idk what to do with the boxes yet. Will change.
+boxes = {"box1": [1, 1, 1]}
+
+problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes)
