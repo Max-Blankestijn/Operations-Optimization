@@ -11,17 +11,22 @@ class CVRP():
     def __init__(self, name, nodes, links, vehicles, dimensions, boxes):
         # Actual way to represent these inputs to be determined
         self.nodes = nodes
+        self.depot = self.nodes[0]
         self.links = links
         self.vehicles = vehicles
         self.dimensions = dimensions
         self.boxes = boxes
-        self.stages = [i for i in range(len(nodes))]
+        self.stages = [i+1 for i in range(len(nodes))]
 
         self.model = gp.Model(name)
 
         # Create decision variables
         self.decision_variables()
         self.ObjectiveFunc()
+
+        self.constraintTwo()
+        self.constraintThree()
+        self.constraintFour()
 
     def decision_variables(self):
         '''
@@ -43,6 +48,71 @@ class CVRP():
 
         self.model.setObjective(objective, GRB.MINIMIZE)
 
+    def constraintTwo(self):
+        '''
+        Constraint two presented in the paper, ensures every customer is visited exactly once
+        '''
+        for k in self.nodes[1:]:
+            self.model.addConstr(
+                gp.quicksum(self.x[k, l, v, t]
+                            for l in self.nodes
+                            for v in self.vehicles
+                            for t in self.stages
+                )
+                == 1,
+                name=f"2|VisitOnce"
+            )
+
+    def constraintThree(self):
+        '''
+        Constraint three presented in the paper, ensures connectivity of each tour
+        '''
+        for k in self.nodes[1:]:
+            self.model.addConstr(
+                gp.quicksum(t * self.x[k, l, v, t]
+                            for l in self.nodes
+                            for v in self.vehicles
+                            for t in self.stages
+                )
+                - gp.quicksum(t * self.x[p, k, v, t]
+                            for p in self.nodes
+                            for v in self.vehicles
+                            for t in self.stages)
+                == 1,
+                name=f"3|Connectivity"
+            )
+
+    def constraintFour(self):
+        '''
+        Constraint four presented in paper, ensures vehicles leave the depot at most once at stage 1
+        '''
+        for v in self.vehicles:
+            self.model.addConstr(
+                gp.quicksum(self.x[1, l, v, 1]
+                            for l in self.nodes[1:]
+                )
+                <= 1,
+                name=f"4|LeaveDepotOnce"
+            )
+
+    def constraintFive(self):
+        '''
+        Constraint five presented in paper, ensures that if vehicle v travels from customer p to customer k at stage t,
+        the vehicle travels from customer k to another customer I at stage t + 1
+        '''
+        for k in self.nodes[1:]:
+            for t in self.stages[:-1]:
+                for v in self.vehicles:
+                    self.model.addConstr(
+                        gp.quicksum(self.x[k, l, v, t+1]
+                                    for l in self.nodes
+                        )
+                        - gp.quicksum(self.x[p, k, v, t]
+                                      for p in self.nodes)
+                        == 0,
+                        name="5|CustomerToCustomer"
+                    )
+
 # Make results reproducable for the time being
 np.random.seed(0)
 
@@ -50,10 +120,14 @@ np.random.seed(0)
 nodes = [1, 2, 3, 4]
 
 # Generate links from each node to each other node with random distances, might need to change to account for depot
-# Infinity if link goes to itself in accordance with the paper
 links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
 
-# Vehicle IDs
+# Make it symmetric
+for i, j in list(links.keys()):
+    if i != j:
+        links[(j, i)] = {"distance": links[(i, j)]["distance"]}
+
+# Vehicle IDs [0, 1, ...]
 vehicles = [0, 1]
 
 # Dimensions of vehicles, identical for each vehicle
@@ -61,6 +135,20 @@ dimensions = {"length": 10, "width": 5, "height": 5}
 
 # Idk what to do with the boxes yet. Will change.
 boxes = {"box1": [1, 1, 1]}
+
+# The above can be used for a more complicated situation. Below is some code that overwrites this all and generates a simple problem
+# Extremely simple test problem
+nodes = [1, 2, 3]
+links = {(1, 1): {"distance": 9999},
+         (1, 2): {"distance": 10},
+         (2, 1): {"distance": 10},
+         (1, 3): {"distance": 30},
+         (3, 1): {"distance": 30},
+         (2, 3): {"distance": 15},
+         (3, 2): {"distance": 15},
+         (2, 2): {"distance": 9999},
+         (3, 3): {"distance": 9999}}
+vehicles = [0]
 
 problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes)
 
@@ -70,4 +158,4 @@ if problem.model.status == GRB.OPTIMAL:
     print("\nActive decision variables (x[i,j,v,t] = 1):")
     for i, j, v, t in problem.x.keys():
         if problem.x[i, j, v, t].X > 0.5:  # X gives the value after optimization
-            print(f"Vehicle {v} travels from node {i} to {j} at stage {t}")
+            print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {links[i, j]}")
