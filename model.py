@@ -8,7 +8,7 @@ class CVRP():
     '''
     class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
     '''
-    def __init__(self, name, nodes, links, vehicles, dimensions, boxes):
+    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, constraints):
         # Actual way to represent these inputs to be determined
         self.nodes = nodes
         self.depot = self.nodes[0]
@@ -16,6 +16,7 @@ class CVRP():
         self.vehicles = vehicles
         self.dimensions = dimensions
         self.boxes = boxes
+        self.constraints = constraints
         self.stages = [i+1 for i in range(len(nodes))]
 
         self.model = gp.Model(name)
@@ -24,9 +25,12 @@ class CVRP():
         self.decision_variables()
         self.ObjectiveFunc()
 
-        self.constraintTwo()
-        self.constraintThree()
-        self.constraintFour()
+        # Add constraints selectively
+        if "constraintTwo" in self.constraints: self.constraintTwo()
+        if "constraintThree" in self.constraints: self.constraintThree()
+        if "constraintFour" in self.constraints: self.constraintFour()
+        if "constraintFourAndAHalf" in self.constraints: self.constraintFourAndAHalf()
+        if "constraintFive" in self.constraints: self.constraintFive()
 
     def decision_variables(self):
         '''
@@ -72,7 +76,7 @@ class CVRP():
                 gp.quicksum(t * self.x[k, l, v, t]
                             for l in self.nodes
                             for v in self.vehicles
-                            for t in self.stages
+                            for t in self.stages[1:]
                 )
                 - gp.quicksum(t * self.x[p, k, v, t]
                             for p in self.nodes
@@ -112,6 +116,19 @@ class CVRP():
                         == 0,
                         name="5|CustomerToCustomer"
                     )
+    
+    def constraintFourAndAHalf(self):
+        '''
+        Constraint from paragraph in paper of page 648, setting all d_1l^tv = 0, such that vehicles can only leave the depot at the first stage
+        '''
+
+        for l in self.nodes[1:]:
+            for t in self.stages[1:]:
+                for v in self.vehicles:
+                    self.model.addConstr(
+                        self.x[1, l, v, t] == 0,
+                        name="4.5|LeaveDepotT=1"
+                    ) 
 
 # Make results reproducable for the time being
 np.random.seed(0)
@@ -149,8 +166,9 @@ links = {(1, 1): {"distance": 9999},
          (2, 2): {"distance": 9999},
          (3, 3): {"distance": 9999}}
 vehicles = [0]
+all_constr = ["constraintTwo", "constraintThree", "constraintFour", 'constraintFourAndAHalf',"constraintFive"]
 
-problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes)
+problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, constraints=all_constr)
 
 problem.model.optimize()
 
