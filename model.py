@@ -27,6 +27,7 @@ class CVRP():
         self.constraintTwo()
         self.constraintThree()
         self.constraintFour()
+        self.constraintFive()
 
     def decision_variables(self):
         '''
@@ -72,7 +73,7 @@ class CVRP():
                 gp.quicksum(t * self.x[k, l, v, t]
                             for l in self.nodes
                             for v in self.vehicles
-                            for t in self.stages
+                            for t in self.stages[1:]
                 )
                 - gp.quicksum(t * self.x[p, k, v, t]
                             for p in self.nodes
