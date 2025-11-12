@@ -8,7 +8,7 @@ class CVRP():
     '''
     class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
     '''
-    def __init__(self, name, nodes, links, vehicles, dimensions, boxes):
+    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, constraints):
         # Actual way to represent these inputs to be determined
         self.nodes = nodes
         self.depot = self.nodes[0]
@@ -17,6 +17,7 @@ class CVRP():
         self.dimensions = dimensions
         self.boxes = boxes
         self.stages = [i+1 for i in range(len(nodes))]
+        self.constraints = constraints
 
         self.model = gp.Model(name)
 
@@ -24,10 +25,10 @@ class CVRP():
         self.decision_variables()
         self.ObjectiveFunc()
 
-        self.constraintTwo()
-        self.constraintThree()
-        self.constraintFour()
-        self.constraintFive()
+        # Add constraints selectively, calls the function if it is enabled
+        for key, value in self.constraints.items():
+            if value:
+                getattr(self, key)()
 
     def decision_variables(self):
         '''
@@ -149,9 +150,14 @@ links = {(1, 1): {"distance": 9999},
          (3, 2): {"distance": 15},
          (2, 2): {"distance": 9999},
          (3, 3): {"distance": 9999}}
-vehicles = [0]
 
-problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes)
+vehicles = [0]
+constraints = {"constraintTwo": True,
+               "constraintThree": True,
+               "constraintFour": True,
+               "constraintFive": True}
+
+problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, constraints=constraints)
 
 problem.model.optimize()
 
