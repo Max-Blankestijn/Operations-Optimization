@@ -15,6 +15,7 @@ class TestCVRP(unittest.TestCase):
 
         cls.test_inputs = []
 
+        # Max: Lets add helper functions to a separate file helper.py and import them
         def make_links(nodes):
             """Helper: make symmetric distance dict for all node pairs."""
             
@@ -73,7 +74,9 @@ class TestCVRP(unittest.TestCase):
     def test_constraint_two(self):
         for case in self.test_inputs:
             with self.subTest(case=case["name"]):
-                testmodel = self.build_model(case, ["constraintTwo"])
+                # Max: I recommend adding a function that takes as input a range and returns the constraint dictionary
+                # associated with the active constraints. (Take full constraint dict and set disabled to false)
+                testmodel = self.build_model(case, {"constraintTwo": True})
                 #Still need to write the actual test lol but je suis tired
 
 
