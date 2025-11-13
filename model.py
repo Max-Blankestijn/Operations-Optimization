@@ -32,18 +32,22 @@ class CVRP():
 
     def decision_variables(self):
         '''
-        Create decision variables to be optimized
+        Create decision variables to be optimized, also encompasses constraint 6 and 11 which sets them to binary
         '''
 
-        # Binary decision variables \(d_{kl}^{tv}\)
-        self.x = self.model.addVars(self.nodes, self.nodes, self.vehicles, self.stages,
+        # Binary route decision variables \(d_{kl}^{tv}\)
+        self.d = self.model.addVars(self.nodes, self.nodes, self.vehicles, self.stages,
                                     vtype=GRB.BINARY,
                                     name='d')
+
+        # Binary loading decision variables \(a_{xyz}^{iktv}\)
+        self.a = self.model.addVars(X, Y, Z, BOXID, self.nodes[1:], self.vehicles, self.stages[:-1])
+
     def ObjectiveFunc(self):
         '''
         Takes link cost and routing decision variables and creates the objective function
         '''
-        objective = gp.quicksum(self.links[i, j]["distance"] * self.x[i, j, v, t]
+        objective = gp.quicksum(self.links[i, j]["distance"] * self.d[i, j, v, t]
                                 for i, j in self.links
                                 for v in self.vehicles
                                 for t in self.stages)
@@ -56,7 +60,7 @@ class CVRP():
         '''
         for k in self.nodes[1:]:
             self.model.addConstr(
-                gp.quicksum(self.x[k, l, v, t]
+                gp.quicksum(self.d[k, l, v, t]
                             for l in self.nodes
                             for v in self.vehicles
                             for t in self.stages
@@ -71,12 +75,12 @@ class CVRP():
         '''
         for k in self.nodes[1:]:
             self.model.addConstr(
-                gp.quicksum(t * self.x[k, l, v, t]
+                gp.quicksum(t * self.d[k, l, v, t]
                             for l in self.nodes
                             for v in self.vehicles
                             for t in self.stages[1:]
                 )
-                - gp.quicksum(t * self.x[p, k, v, t]
+                - gp.quicksum(t * self.d[p, k, v, t]
                             for p in self.nodes
                             for v in self.vehicles
                             for t in self.stages)
@@ -90,7 +94,7 @@ class CVRP():
         '''
         for v in self.vehicles:
             self.model.addConstr(
-                gp.quicksum(self.x[1, l, v, 1]
+                gp.quicksum(self.d[1, l, v, 1]
                             for l in self.nodes[1:]
                 )
                 <= 1,
@@ -106,7 +110,7 @@ class CVRP():
             for t in self.stages[:-1]:
                 for v in self.vehicles:
                     self.model.addConstr(
-                        gp.quicksum(self.x[k, l, v, t+1]
+                        gp.quicksum(self.d[k, l, v, t+1]
                                     for l in self.nodes
                         )
                         - gp.quicksum(self.x[p, k, v, t]

@@ -15,7 +15,7 @@ class TestCVRP(unittest.TestCase):
 
         cls.test_inputs = []
 
-        # Max: Lets add helper functions to a separate file helper.py and import them
+        # Max: Lets add helper functions to a separate file helper.py and import them (can't be asked to do it right now)
         def make_links(nodes):
             """Helper: make symmetric distance dict for all node pairs."""
             
