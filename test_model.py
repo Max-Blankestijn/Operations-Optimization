@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 
 from model import CVRP
+from helper import make_links
 
 class TestCVRP(unittest.TestCase):
 
@@ -14,23 +15,6 @@ class TestCVRP(unittest.TestCase):
         """
 
         cls.test_inputs = []
-
-        # Max: Lets add helper functions to a separate file helper.py and import them (can't be asked to do it right now)
-        def make_links(nodes):
-            """Helper: make symmetric distance dict for all node pairs."""
-            
-            np.random.seed(42)
-
-            links = {}
-            for i in nodes:
-                for j in nodes:
-                    if i == j:
-                        links[(i, j)] = {"distance": 9999}
-                    else:
-                        dist = np.random.randint(5, 100)
-                        links[(i, j)] = {"distance": dist}
-                        links[(j, i)] = {"distance": dist}
-            return links
 
         # Different configurations, this list will become quite big I think
         test_scenarios = [
