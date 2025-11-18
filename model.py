@@ -41,7 +41,7 @@ class CVRP():
                                     name='d')
 
         # Binary loading decision variables \(a_{xyz}^{iktv}\)
-        self.a = self.model.addVars(X, Y, Z, BOXID, self.nodes[1:], self.vehicles, self.stages[:-1])
+        #self.a = self.model.addVars(X, Y, Z, BOXID, self.nodes[1:], self.vehicles, self.stages[:-1])
 
     def ObjectiveFunc(self):
         '''
@@ -113,7 +113,7 @@ class CVRP():
                         gp.quicksum(self.d[k, l, v, t+1]
                                     for l in self.nodes
                         )
-                        - gp.quicksum(self.x[p, k, v, t]
+                        - gp.quicksum(self.d[p, k, v, t]
                                       for p in self.nodes)
                         == 0,
                         name="5|CustomerToCustomer"
