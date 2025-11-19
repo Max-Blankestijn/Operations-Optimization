@@ -8,15 +8,18 @@ class CVRP():
     '''
     class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
     '''
-    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, constraints):
+    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, demand, constraints):
         # Actual way to represent these inputs to be determined
         self.nodes = nodes
         self.depot = self.nodes[0]
         self.links = links
+        self.demand = demand
 
+        # Vehicle IDs and Vehicle Dimensions
         self.vehicles = vehicles
         self.dimensions = dimensions
 
+        # Box sizes and IDs
         self.boxes = boxes
         self.boxID = list(boxes.keys())
 
@@ -175,14 +178,15 @@ boxes = {1: [5, 10, 10],
          2: [5, 5, 5],
          3: [3, 2, 6]}
 
-print(list(boxes.keys()))
+demand = {2: {1: 2, 2: 1, 3: 0},
+                   3: {1: 0, 2: 0, 3: 1}}
 
-problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, constraints=constraints)
+problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
 
 problem.model.optimize()
 
 if problem.model.status == GRB.OPTIMAL:
-    print("\nActive decision variables (x[i,j,v,t] = 1):")
+    print("\nActive decision variables (d[i,j,v,t] = 1):")
     for i, j, v, t in problem.d.keys():
         if problem.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
             print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {links[i, j]}")
