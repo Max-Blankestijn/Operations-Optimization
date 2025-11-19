@@ -9,7 +9,8 @@ class CVRP():
     class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
     '''
     def __init__(self, name, nodes, links, vehicles, dimensions, boxes, demand, constraints):
-        # Actual way to represent these inputs to be determined
+
+        # Define the nodes and demands (Depot 0, rest customer nodes)
         self.nodes = nodes
         self.depot = self.nodes[0]
         self.links = links
@@ -28,9 +29,11 @@ class CVRP():
         self.width = [i for i in range(0, dimensions["width"]-np.min([value[1] for value in self.boxes.values()])+1)]
         self.height = [i for i in range(0, dimensions["height"]-np.min([value[2] for value in self.boxes.values()])+1)]
 
+        # Define time stages and active constraints
         self.stages = [i+1 for i in range(len(nodes))]
         self.constraints = constraints
 
+        # Create the model
         self.model = gp.Model(name)
 
         # Create decision variables
@@ -142,7 +145,8 @@ class CVRP():
                             for l in self.nodes
                             for k in self.nodes[1:]
                             for i in self.boxID)
-                <= self.dimensions["length"] * self.dimensions["width"] * self.dimensions["height"]
+                <= self.dimensions["length"] * self.dimensions["width"] * self.dimensions["height"],
+                name="7|VehicleCapacity"
             )
 
     def constraintEight(self):
@@ -161,7 +165,8 @@ class CVRP():
                         ==
                         gp.quicksum(self.demand[i][k] * self.d[l, k, v, t]
                                     for i in self.boxID
-                                    for l in self.nodes)
+                                    for l in self.nodes),
+                        name="8|UnpackAll"
                     )
 
 
@@ -202,8 +207,10 @@ links = {(1, 1): {"distance": 9999},
          (2, 2): {"distance": 9999},
          (3, 3): {"distance": 9999}}
 
+# Vehicle IDs
 vehicles = [0]
 
+# Active Constraints
 constraints = {"constraintTwo": True,
                "constraintThree": True,
                "constraintFour": True,
@@ -211,18 +218,23 @@ constraints = {"constraintTwo": True,
                "constraintSeven": True,
                "constraintEight": True}
 
+# Boxes
 boxes = {1: [5, 10, 10],
          2: [5, 5, 5],
          3: [3, 2, 6]}
 
+# Customer Demand
 demand = {1: {2: 2, 3: 0},
           2: {2: 1, 3: 0},
           3: {2: 0, 3: 1}}
 
+# Problem Creation
 problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
 
+# Optimize model
 problem.model.optimize()
 
+# Print out taken routes by vehicles
 if problem.model.status == GRB.OPTIMAL:
     print("\nActive decision variables (d[i,j,v,t] = 1):")
     for i, j, v, t in problem.d.keys():
