@@ -13,11 +13,17 @@ class CVRP():
         self.nodes = nodes
         self.depot = self.nodes[0]
         self.links = links
+
         self.vehicles = vehicles
         self.dimensions = dimensions
 
         self.boxes = boxes
         self.boxID = list(boxes.keys())
+
+        # Compute list of all possible length, width and height locations. To be reduced using form of the paper
+        self.length = [i for i in range(0, dimensions["length"]-np.min([value[0] for value in self.boxes.values()])+1)]
+        self.width = [i for i in range(0, dimensions["width"]-np.min([value[1] for value in self.boxes.values()])+1)]
+        self.height = [i for i in range(0, dimensions["height"]-np.min([value[2] for value in self.boxes.values()])+1)]
 
         self.stages = [i+1 for i in range(len(nodes))]
         self.constraints = constraints
@@ -44,7 +50,7 @@ class CVRP():
                                     name='d')
 
         # Binary loading decision variables \(a_{xyz}^{iktv}\)
-        #self.a = self.model.addVars(X, Y, Z, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1])
+        self.a = self.model.addVars(self.length, self.width, self.height, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1])
 
     def ObjectiveFunc(self):
         '''
@@ -140,7 +146,7 @@ for i, j in list(links.keys()):
 vehicles = [0, 1]
 
 # Dimensions of vehicles, identical for each vehicle
-dimensions = {"length": 10, "width": 5, "height": 5}
+dimensions = {"length": 30, "width": 20, "height": 30}
 
 # Idk what to do with the boxes yet. Will change.
 boxes = {"box1": [1, 1, 1]}
@@ -159,14 +165,15 @@ links = {(1, 1): {"distance": 9999},
          (3, 3): {"distance": 9999}}
 
 vehicles = [0]
+
 constraints = {"constraintTwo": True,
                "constraintThree": True,
                "constraintFour": True,
                "constraintFive": True}
 
-boxes = {1: [10, 20, 30],
-         2: [20, 30, 40],
-         3: [40, 50, 60]}
+boxes = {1: [5, 10, 10],
+         2: [5, 5, 5],
+         3: [3, 2, 6]}
 
 print(list(boxes.keys()))
 
