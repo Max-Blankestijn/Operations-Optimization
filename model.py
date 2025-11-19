@@ -131,6 +131,20 @@ class CVRP():
                         name="5|CustomerToCustomer"
                     )
 
+    def constraintSeven(self):
+        '''
+        Constraint seven presented in paper, ensures capacity of vehicles is not exceeded
+        '''
+        for v in self.vehicles:
+            self.model.addConstr(
+                gp.quicksum(self.boxes[i][0] * self.boxes[i][1] * self.boxes[i][2] * self.demand[i][k]
+                            for t in self.nodes[1:]
+                            for l in self.nodes
+                            for k in self.nodes[1:]
+                            for i in self.boxID)
+                <= self.dimensions["length"] * self.dimensions["width"] * self.dimensions["height"]
+            )
+
 # Make results reproducable for the time being
 np.random.seed(0)
 
@@ -172,14 +186,16 @@ vehicles = [0]
 constraints = {"constraintTwo": True,
                "constraintThree": True,
                "constraintFour": True,
-               "constraintFive": True}
+               "constraintFive": True,
+               "constraintSeven": True}
 
 boxes = {1: [5, 10, 10],
          2: [5, 5, 5],
          3: [3, 2, 6]}
 
-demand = {2: {1: 2, 2: 1, 3: 0},
-                   3: {1: 0, 2: 0, 3: 1}}
+demand = {1: {2: 2, 3: 0},
+          2: {2: 1, 3: 0},
+          3: {2: 0, 3: 1}}
 
 problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
 
