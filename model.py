@@ -15,7 +15,10 @@ class CVRP():
         self.links = links
         self.vehicles = vehicles
         self.dimensions = dimensions
+
         self.boxes = boxes
+        self.boxID = list(boxes.keys())
+
         self.stages = [i+1 for i in range(len(nodes))]
         self.constraints = constraints
 
@@ -41,7 +44,7 @@ class CVRP():
                                     name='d')
 
         # Binary loading decision variables \(a_{xyz}^{iktv}\)
-        #self.a = self.model.addVars(X, Y, Z, BOXID, self.nodes[1:], self.vehicles, self.stages[:-1])
+        #self.a = self.model.addVars(X, Y, Z, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1])
 
     def ObjectiveFunc(self):
         '''
@@ -161,12 +164,18 @@ constraints = {"constraintTwo": True,
                "constraintFour": True,
                "constraintFive": True}
 
+boxes = {1: [10, 20, 30],
+         2: [20, 30, 40],
+         3: [40, 50, 60]}
+
+print(list(boxes.keys()))
+
 problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, constraints=constraints)
 
 problem.model.optimize()
 
 if problem.model.status == GRB.OPTIMAL:
     print("\nActive decision variables (x[i,j,v,t] = 1):")
-    for i, j, v, t in problem.x.keys():
-        if problem.x[i, j, v, t].X > 0.5:  # X gives the value after optimization
+    for i, j, v, t in problem.d.keys():
+        if problem.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
             print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {links[i, j]}")
