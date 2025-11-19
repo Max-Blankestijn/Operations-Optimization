@@ -145,6 +145,27 @@ class CVRP():
                 <= self.dimensions["length"] * self.dimensions["width"] * self.dimensions["height"]
             )
 
+    def constraintEight(self):
+        '''
+        Constraint eight presented in paper, ensures all boxes for customer k are unpacked when at that customer
+        '''
+        for k in self.nodes[1:]:
+            for t in self.nodes[:-1]:
+                for v in self.vehicles:
+                    self.model.addConstr(
+                        gp.quicksum(self.a[x, y, z, i, k, v, t]
+                                    for i in self.boxID
+                                    for x in self.length
+                                    for y in self.width
+                                    for z in self.height)
+                        ==
+                        gp.quicksum(self.demand[i][k] * self.d[l, k, v, t]
+                                    for i in self.boxID
+                                    for l in self.nodes)
+                    )
+
+
+
 # Make results reproducable for the time being
 np.random.seed(0)
 
@@ -187,7 +208,8 @@ constraints = {"constraintTwo": True,
                "constraintThree": True,
                "constraintFour": True,
                "constraintFive": True,
-               "constraintSeven": True}
+               "constraintSeven": True,
+               "constraintEight": True}
 
 boxes = {1: [5, 10, 10],
          2: [5, 5, 5],
