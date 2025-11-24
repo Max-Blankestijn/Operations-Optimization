@@ -141,7 +141,7 @@ class CVRP():
         for v in self.vehicles:
             self.model.addConstr(
                 gp.quicksum(self.boxes[i][0] * self.boxes[i][1] * self.boxes[i][2] * self.demand[i][k]
-                            for t in self.nodes[1:]
+                            for t in self.stages[1:]
                             for l in self.nodes
                             for k in self.nodes[1:]
                             for i in self.boxID)
@@ -154,7 +154,7 @@ class CVRP():
         Constraint eight presented in paper, ensures all boxes for customer k are unpacked when at that customer
         '''
         for k in self.nodes[1:]:
-            for t in self.nodes[:-1]:
+            for t in self.stages[:-1]:
                 for v in self.vehicles:
                     self.model.addConstr(
                         gp.quicksum(self.a[x, y, z, i, k, v, t]
@@ -168,6 +168,50 @@ class CVRP():
                                     for l in self.nodes),
                         name="8|UnpackAll"
                     )
+
+    def constraintNine(self):
+        '''
+        Constraint nine presented in paper, ensures boxes do not overlap. (Slows down model significantly)
+        '''
+        for x_prime in self.length:
+            for y_prime in self.width:
+                for z_prime in self.height:
+                    for v in self.vehicles:
+                        self.model.addConstr(
+                            gp.quicksum(self.a[x, y, z, i, k, v, t]
+                                        for z in self.height
+                                        for y in self.width
+                                        for x in self.length
+                                        for i in self.boxID
+                                        if x_prime - self.boxes[i][0] + 1 <= x <= x_prime
+                                        if y_prime - self.boxes[i][1] + 1 <= y <= y_prime
+                                        if z_prime - self.boxes[i][2] + 1 <= z <= z_prime
+                                        for t in self.stages[:-1]
+                                        for k in self.nodes[1:]
+                            )
+                            <=
+                            1,
+                            name="9|NoOverlapBoxes"
+                        )
+
+    def constraintTen(self):
+        '''
+        Constraint ten presented in paper, ensures the demand can be satisfied
+        '''
+        for i in self.boxID:
+            for k in self.nodes[1:]:
+                self.model.addConstr(
+                    gp.quicksum(self.a[x, y, z, i, k, v, t]
+                                for z in self.height
+                                for y in self.width
+                                for x in self.length
+                                for v in self.vehicles
+                                for t in self.stages[:-1])
+                    ==
+                    self.demand[i][k],
+                    name="10|DemandSatisfiability"
+
+                )
 
 
 
@@ -216,7 +260,9 @@ constraints = {"constraintTwo": True,
                "constraintFour": True,
                "constraintFive": True,
                "constraintSeven": True,
-               "constraintEight": True}
+               "constraintEight": True,
+               "constraintNine": True,
+               "constraintTen": True}
 
 # Boxes
 boxes = {1: [5, 10, 10],
