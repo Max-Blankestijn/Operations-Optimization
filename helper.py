@@ -1,6 +1,6 @@
 def constraintGenerator(active) -> dict:
     '''
-    Determines constraints that will be active in the model, input can be either a list or a range of constraints
+    Determines constraints that will be active in the model, input can be either a list or a range of active constraints
     Keep in mind that the inserted range should go up to constraint n + 1 rather than n.
     '''
     # Dictionary of all constraints, constraint one, six and eleven are dummy constraints that are always active
