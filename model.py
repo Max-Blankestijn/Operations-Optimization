@@ -3,6 +3,7 @@ import scipy as sp
 import matplotlib.pyplot as plt
 import gurobipy as gp
 from gurobipy import GRB
+from helper import *
 
 class CVRP():
     '''
@@ -254,15 +255,9 @@ links = {(1, 1): {"distance": 9999},
 # Vehicle IDs
 vehicles = [0]
 
-# Active Constraints
-constraints = {"constraintTwo": True,
-               "constraintThree": True,
-               "constraintFour": True,
-               "constraintFive": True,
-               "constraintSeven": True,
-               "constraintEight": True,
-               "constraintNine": True,
-               "constraintTen": True}
+# Active Constraints Dictionary from helper.py constraintGenerator function
+Nconstraints = 8
+constraints = constraintGenerator(range(1, Nconstraints+1))
 
 # Boxes
 boxes = {1: [5, 10, 10],
