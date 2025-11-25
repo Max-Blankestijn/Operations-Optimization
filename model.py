@@ -214,101 +214,100 @@ class CVRP():
 
                 )
 
+if __name__ == "__main__":
+    # Make results reproducable for the time being
+    np.random.seed(0)
 
+    # Depot (1) and customer nodes (2..., n)
+    nodes = [1, 2, 3, 4]
 
-# Make results reproducable for the time being
-np.random.seed(0)
+    # Generate links from each node to each other node with random distances, might need to change to account for depot
+    links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
 
-# Depot (1) and customer nodes (2..., n)
-nodes = [1, 2, 3, 4]
+    # Make it symmetric
+    for i, j in list(links.keys()):
+        if i != j:
+            links[(j, i)] = {"distance": links[(i, j)]["distance"]}
 
-# Generate links from each node to each other node with random distances, might need to change to account for depot
-links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
+    # Vehicle IDs [0, 1, ...]
+    vehicles = [0, 1]
 
-# Make it symmetric
-for i, j in list(links.keys()):
-    if i != j:
-        links[(j, i)] = {"distance": links[(i, j)]["distance"]}
+    # Dimensions of vehicles, identical for each vehicle
+    dimensions = {"length": 12, "width": 8, "height": 8}
 
-# Vehicle IDs [0, 1, ...]
-vehicles = [0, 1]
+    # The above can be used for a more complicated situation. Below is some code that overwrites this all and generates a simple problem
+    # Extremely simple test problem
+    nodes = [1, 2, 3, 4, 5]
 
-# Dimensions of vehicles, identical for each vehicle
-dimensions = {"length": 12, "width": 8, "height": 8}
+    # Generate links from each node to each other node with random distances
+    links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
 
-# The above can be used for a more complicated situation. Below is some code that overwrites this all and generates a simple problem
-# Extremely simple test problem
-nodes = [1, 2, 3, 4, 5]
+    # Make it symmetric
+    for i, j in list(links.keys()):
+        if i != j:
+            links[(j, i)] = {"distance": links[(i, j)]["distance"]}
 
-# Generate links from each node to each other node with random distances
-links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
+    # links = {(1, 1): {"distance": 9999},
+    #          (1, 2): {"distance": 10},
+    #          (2, 1): {"distance": 10},
+    #          (1, 3): {"distance": 30},
+    #          (3, 1): {"distance": 30},
+    #          (2, 3): {"distance": 15},
+    #          (3, 2): {"distance": 15},
+    #          (2, 2): {"distance": 9999},
+    #          (3, 3): {"distance": 9999}}
 
-# Make it symmetric
-for i, j in list(links.keys()):
-    if i != j:
-        links[(j, i)] = {"distance": links[(i, j)]["distance"]}
+    # Vehicle IDs
+    vehicles = [0, 1]
 
-# links = {(1, 1): {"distance": 9999},
-#          (1, 2): {"distance": 10},
-#          (2, 1): {"distance": 10},
-#          (1, 3): {"distance": 30},
-#          (3, 1): {"distance": 30},
-#          (2, 3): {"distance": 15},
-#          (3, 2): {"distance": 15},
-#          (2, 2): {"distance": 9999},
-#          (3, 3): {"distance": 9999}}
+    # Active Constraints Dictionary from helper.py constraintGenerator function
+    Nconstraints = 12
+    constraints = constraintGenerator(range(1, Nconstraints+1))
 
-# Vehicle IDs
-vehicles = [0, 1]
+    # Boxes
+    boxes = {1: [2, 3, 4],
+             2: [4, 2, 4],
+             3: [4, 3, 3],
+             4: [6, 2, 3]}
 
-# Active Constraints Dictionary from helper.py constraintGenerator function
-Nconstraints = 12
-constraints = constraintGenerator(range(1, Nconstraints+1))
+    # Customer Demand
+    demand = {1: {2: 3, 3: 0, 4: 3, 5: 4},
+              2: {2: 1, 3: 3, 4: 1, 5: 3},
+              3: {2: 2, 3: 4, 4: 0, 5: 1},
+              4: {2: 4, 3: 2, 4: 0, 5: 1}}
 
-# Boxes
-boxes = {1: [2, 3, 4],
-         2: [4, 2, 4],
-         3: [4, 3, 3],
-         4: [6, 2, 3]}
+    # Problem Creation
+    problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
+    print("Model Created, starting optimization...")
 
-# Customer Demand
-demand = {1: {2: 3, 3: 0, 4: 3, 5: 4},
-          2: {2: 1, 3: 3, 4: 1, 5: 3},
-          3: {2: 2, 3: 4, 4: 0, 5: 1},
-          4: {2: 4, 3: 2, 4: 0, 5: 1}}
+    # Optimize model
+    problem.model.optimize()
+    print("Finished optimization")
 
-# Problem Creation
-problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
-print("Model Created, starting optimization...")
+    used_boxes1 = {1: [],
+                  2: [],
+                  3: [],
+                  4: []}
 
-# Optimize model
-problem.model.optimize()
-print("Finished optimization")
+    used_boxes2 = {1: [],
+                  2: [],
+                  3: [],
+                  4: []}
 
-used_boxes1 = {1: [],
-              2: [],
-              3: [],
-              4: []}
+    # Print out taken routes by vehicles
+    if problem.model.status == GRB.OPTIMAL:
+        print("\nActive decision variables (d[i,j,v,t] = 1):")
+        for i, j, v, t in problem.d.keys():
+            if problem.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
+                print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {links[i, j]}")
+        for x, y, z, i, k, v, t in problem.a.keys():
+            if problem.a[x, y, z, i, k, v, t].X > 0.5:
+                if v == 0:
+                    used_boxes1[i].append([x, y, z])
+                if v == 1:
+                    used_boxes2[i].append([x, y, z])
+                print(f"Box of type {i} in vehicle {v} for customer {k} is at xyz: [{x},{y},{z}] at stage {t}")
 
-used_boxes2 = {1: [],
-              2: [],
-              3: [],
-              4: []}
-
-# Print out taken routes by vehicles
-if problem.model.status == GRB.OPTIMAL:
-    print("\nActive decision variables (d[i,j,v,t] = 1):")
-    for i, j, v, t in problem.d.keys():
-        if problem.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
-            print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {links[i, j]}")
-    for x, y, z, i, k, v, t in problem.a.keys():
-        if problem.a[x, y, z, i, k, v, t].X > 0.5:
-            if v == 0:
-                used_boxes1[i].append([x, y, z])
-            if v == 1:
-                used_boxes2[i].append([x, y, z])
-            print(f"Box of type {i} in vehicle {v} for customer {k} is at xyz: [{x},{y},{z}] at stage {t}")
-
-# Call the function
-plot_boxes_3d(used_boxes1, boxes, dimensions)
-plot_boxes_3d(used_boxes2, boxes, dimensions)
+    # Call the function
+    plot_boxes_3d(used_boxes1, boxes, dimensions)
+    plot_boxes_3d(used_boxes2, boxes, dimensions)
