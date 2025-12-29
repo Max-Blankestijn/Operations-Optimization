@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 def constraintGenerator(active) -> dict:
@@ -18,7 +19,7 @@ def constraintGenerator(active) -> dict:
                    "constraintEight": False,
                    "constraintNine": False,
                    "constraintTen": False,
-                   "constraintElevenDummy": None}
+                   "constraintEleven": False}
 
     # Range Activation (range(constraint_start, constraint_end+1))
     if isinstance(active, range):
@@ -97,6 +98,16 @@ def plot_boxes_3d(used_boxes, boxes, dimensions):
     ax.set_title("3D Loaded Vehicle Visualization")
     plt.tight_layout()
     plt.show()
+
+def make_links(nodes):
+    # Generate links from each node to each other node with random distances, might need to change to account for depot
+    links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
+
+    # Make it symmetric
+    for i, j in list(links.keys()):
+        if i != j:
+            links[(j, i)] = {"distance": links[(i, j)]["distance"]}
+    return links
 
 
 if __name__ == "__main__":

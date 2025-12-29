@@ -57,7 +57,9 @@ class CVRP():
                                     name='d')
 
         # Binary loading decision variables \(a_{xyz}^{iktv}\)
-        self.a = self.model.addVars(self.length, self.width, self.height, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1])
+        self.a = self.model.addVars(self.length, self.width, self.height, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1], 
+                                    vtype=GRB.BINARY,
+                                    name='a')
 
     def ObjectiveFunc(self):
         '''
@@ -134,10 +136,13 @@ class CVRP():
                         == 0,
                         name="5|CustomerToCustomer"
                     )
-
+    
     def constraintSeven(self):
+        return
+
+    def constraintEight(self):
         '''
-        Constraint seven presented in paper, ensures capacity of vehicles is not exceeded
+        Constraint eight presented in paper, ensures capacity of vehicles is not exceeded
         '''
         for v in self.vehicles:
             self.model.addConstr(
@@ -147,12 +152,12 @@ class CVRP():
                             for k in self.nodes[1:]
                             for i in self.boxID)
                 <= self.dimensions["length"] * self.dimensions["width"] * self.dimensions["height"],
-                name="7|VehicleCapacity"
+                name="8|VehicleCapacity"
             )
 
-    def constraintEight(self):
+    def constraintNine(self):
         '''
-        Constraint eight presented in paper, ensures all boxes for customer k are unpacked when at that customer
+        Constraint nine presented in paper, ensures all boxes for customer k are unpacked when at that customer
         '''
         for k in self.nodes[1:]:
             for t in self.stages[:-1]:
@@ -167,12 +172,12 @@ class CVRP():
                         gp.quicksum(self.demand[i][k] * self.d[l, k, v, t]
                                     for i in self.boxID
                                     for l in self.nodes),
-                        name="8|UnpackAll"
+                        name="9|UnpackAll"
                     )
 
-    def constraintNine(self):
+    def constraintTen(self):
         '''
-        Constraint nine presented in paper, ensures boxes do not overlap. (Slows down model significantly)
+        Constraint ten presented in paper, ensures boxes do not overlap. (Slows down model significantly)
         '''
         for x_prime in self.length:
             for y_prime in self.width:
@@ -192,15 +197,16 @@ class CVRP():
                             )
                             <=
                             1,
-                            name="9|NoOverlapBoxes"
+                            name="10|NoOverlapBoxes"
                         )
 
-    def constraintTen(self):
+    def constraintEleven(self):
         '''
-        Constraint ten presented in paper, ensures the demand can be satisfied
+        Constraint eleven presented in paper, ensures the demand can be satisfied
         '''
         for i in self.boxID:
             for k in self.nodes[1:]:
+                print('jooo', self.demand[i][k])
                 self.model.addConstr(
                     gp.quicksum(self.a[x, y, z, i, k, v, t]
                                 for z in self.height
@@ -210,9 +216,20 @@ class CVRP():
                                 for t in self.stages[:-1])
                     ==
                     self.demand[i][k],
-                    name="10|DemandSatisfiability"
+                    name="11|DemandSatisfiability"
 
                 )
+
+    # def constraintThirteen(self):
+    #     for i in self.boxID:
+    #         for k in self.nodes[1:]:
+    #             for t in self.stages[:-1]:
+    #                 for v in self.vehicles:
+    #                     for x in self.length: # needs to become reduced version (X_t)
+    #                         for y in self.width: #idem
+    #                             for z in self.height: #idem, need to ad \{0}
+
+
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
@@ -230,7 +247,7 @@ if __name__ == "__main__":
             links[(j, i)] = {"distance": links[(i, j)]["distance"]}
 
     # Vehicle IDs [0, 1, ...]
-    vehicles = [0, 1]
+    # vehicles = [0, 1]
 
     # Dimensions of vehicles, identical for each vehicle
     dimensions = {"length": 12, "width": 8, "height": 8}
@@ -258,11 +275,13 @@ if __name__ == "__main__":
     #          (3, 3): {"distance": 9999}}
 
     # Vehicle IDs
-    vehicles = [0, 1]
+    # vehicles = [0, 1]
+    vehicles = [0]
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
     Nconstraints = 12
     constraints = constraintGenerator(range(1, Nconstraints+1))
+    print('constraints', constraints)
 
     # Boxes
     boxes = {1: [2, 3, 4],
@@ -271,10 +290,16 @@ if __name__ == "__main__":
              4: [6, 2, 3]}
 
     # Customer Demand
-    demand = {1: {2: 3, 3: 0, 4: 3, 5: 4},
-              2: {2: 1, 3: 3, 4: 1, 5: 3},
-              3: {2: 2, 3: 4, 4: 0, 5: 1},
-              4: {2: 4, 3: 2, 4: 0, 5: 1}}
+    # key = box, keys in subdicts are nodes, values are number of boxes at each node
+    # demand = {1: {2: 3, 3: 0, 4: 3, 5: 4},
+    #           2: {2: 1, 3: 3, 4: 1, 5: 3},
+    #           3: {2: 2, 3: 4, 4: 0, 5: 1},
+    #           4: {2: 4, 3: 2, 4: 0, 5: 1}}
+    
+    demand = {1: {2: 1, 3: 1, 4: 0, 5: 0},
+              2: {2: 0, 3: 1, 4: 1, 5: 0},
+              3: {2: 0, 3: 0, 4: 1, 5: 1},
+              4: {2: 1, 3: 0, 4: 0, 5: 1}}
 
     # Problem Creation
     problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
@@ -310,4 +335,4 @@ if __name__ == "__main__":
 
     # Call the function
     plot_boxes_3d(used_boxes1, boxes, dimensions)
-    plot_boxes_3d(used_boxes2, boxes, dimensions)
+    # plot_boxes_3d(used_boxes2, boxes, dimensions)
