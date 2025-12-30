@@ -446,7 +446,7 @@ if __name__ == "__main__":
     maximum_reach = [[boxes[i][0] for k in nodes[1:]] for i in boxes.keys()]
 
     # Fragility, set to 0 for no boxes on top of this box type, higher value means more load bearing capability
-    sigma = [0 for i in boxes.keys()]
+    sigma = [9999999 for i in boxes.keys()]
 
     # weight of box of type i
     density = 1
