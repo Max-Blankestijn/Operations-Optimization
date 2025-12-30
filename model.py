@@ -25,6 +25,11 @@ class CVRP():
         self.boxes = boxes
         self.boxID = list(boxes.keys())
 
+        # Large numbers
+        self.M1 = 1.1 * sum(self.boxes[i][0] * sum(self.demand[i].values()) for i in self.boxes)
+        self.M2 = 1.1 * sum(self.boxes[i][1] * sum(self.demand[i].values()) for i in self.boxes)
+        self.M3 = 1.1 * sum(self.boxes[i][2] * sum(self.demand[i].values()) for i in self.boxes)
+
         # Create lists with box lengths, widths, heights and the amount of a given box
         sizes_L = []
         sizes_W = []
@@ -287,6 +292,20 @@ class CVRP():
                                     <=
                                     self.l_p[k, v]
                                 )
+
+
+    def constraintFifteen(self):
+        '''
+        Constraint fifteen presented in paper, multidrop situation constraint 2
+        '''
+        for i in self.boxID:
+            for v in self.vehicles:
+                for k in self.nodes[1:]:
+                    for l in self.nodes[1:]:
+                        for x in self.xpos_lst[i-1]:
+                            for y in self.ypos_lst[i-1]:
+                                for z in self.zpos_lst[i-1]:
+
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
