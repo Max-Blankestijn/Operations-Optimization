@@ -93,7 +93,7 @@ class CVRP():
                                     name='a')
 
         # Auxiliary real variable \(L'_{kv}\)
-        self.l_p = self.model.addVars(self.nodes[:-1], self.vehicles,
+        self.l_p = self.model.addVars(self.nodes[1:], self.vehicles,
                                     name='l_p')
 
     def ObjectiveFunc(self):
@@ -305,16 +305,25 @@ class CVRP():
                             for y in self.ypos_lst[i-1]:
                                 for z in self.zpos_lst[i-1]:
                                     self.model.addConstr(
-                                        self.l_p[l, v] - self.maximum_reach[i][k]
+                                        self.l_p[l, v] - self.maximum_reach[i-1][k-2] # i starts at 1, k at 2 but are indexed at 0.
                                         <=
-                                        x * gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1]) + \
-                                        (1 - gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1])) * self.M1 + \
+                                        x * gp.quicksum(self.a[x, y, z, i, k, v, t] for t in self.stages[:-1]) + \
+                                        (1 - gp.quicksum(self.a[x, y, z, i, k, v, t] for t in self.stages[:-1])) * self.M1 + \
                                         (1 - gp.quicksum(self.d[k, l, v, t] for t in self.stages[:-1])) * self.M2
                                     )
-    def constraintFifteen(self):
+    def constraintSixteen(self):
         '''
-        Constraint fifteen presented in paper, multidrop situation constraint 2
+        Constraint Sixteen presented in paper, multidrop situation constraint 3
         '''
+        for k in self.nodes[1:]:
+            for l in self.nodes[1:]:
+                for v in vehicles:
+                    self.model.addConstr(
+                        self.l_p[l, v]
+                        <=
+                        self.l_p[k, v] +
+                        (1 - gp.quicksum(self.d[k, l, v, t] for t in self.stages[:-1])) * self.M3
+                    )
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
@@ -364,7 +373,7 @@ if __name__ == "__main__":
     vehicles = [0]
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
-    Nconstraints = 13
+    Nconstraints = 16
     constraints = constraintGenerator(range(1, Nconstraints+1))
     print('constraints', constraints)
 
