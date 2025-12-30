@@ -9,7 +9,7 @@ class CVRP():
     '''
     class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
     '''
-    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, demand, maximum_reach, constraints):
+    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, demand, maximum_reach, p, sigma, constraints):
 
         # Define the nodes and demands (Depot 0, rest customer nodes)
         self.nodes = nodes
@@ -24,7 +24,11 @@ class CVRP():
         # Box sizes and IDs
         self.boxes = boxes
         self.boxID = list(boxes.keys())
+
+        # Multidrop and load variables
         self.maximum_reach = maximum_reach
+        self.p = p
+        self.sigma = sigma
 
         # Large numbers
         self.M1 = 1.1 * sum(self.boxes[i][0] * sum(self.demand[i].values()) for i in self.boxes)
@@ -87,14 +91,15 @@ class CVRP():
                                     vtype=GRB.BINARY,
                                     name='d')
 
-        # Binary loading decision variables \(a_{xyz}^{iktv}\)
-        self.a = self.model.addVars(self.xpos, self.ypos, self.zpos, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1],
+        # Binary loading decision variables \(a_{xyz}^{iktv}\) Note that t and v are inverted
+        self.a = self.model.addVars(self.xpos, self.ypos, self.zpos, self.boxID, self.nodes[1:], self.stages[:-1], self.vehicles,
                                     vtype=GRB.BINARY,
                                     name='a')
 
-        # Auxiliary real variable \(L'_{kv}\)
+        # Auxiliary real variable \(L'_{kv}\) lower bound set to 0 to simulate constraint 19
         self.l_p = self.model.addVars(self.nodes[1:], self.vehicles,
-                                    name='l_p')
+                                      lb=0.0,
+                                      name='l_p')
 
     def ObjectiveFunc(self):
         '''
@@ -198,7 +203,7 @@ class CVRP():
             for t in self.stages[:-1]:
                 for v in self.vehicles:
                     self.model.addConstr(
-                        gp.quicksum(self.a[x, y, z, i, k, v, t]
+                        gp.quicksum(self.a[x, y, z, i, k, t, v]
                                     for i in self.boxID
                                     for x in self.xpos
                                     for y in self.ypos
@@ -219,7 +224,7 @@ class CVRP():
                 for z_prime in self.zpos:
                     for v in self.vehicles:
                         self.model.addConstr(
-                            gp.quicksum(self.a[x, y, z, i, k, v, t]
+                            gp.quicksum(self.a[x, y, z, i, k, t, v]
                                         for i in self.boxID
                                         for k in self.nodes[1:]
                                         for t in self.stages[:-1]
@@ -239,7 +244,7 @@ class CVRP():
         for i in self.boxID:
             for k in self.nodes[1:]:
                 self.model.addConstr(
-                    gp.quicksum(self.a[x, y, z, i, k, v, t]
+                    gp.quicksum(self.a[x, y, z, i, k, t, v]
                                 for z in self.zpos_lst[i-1]
                                 for y in self.ypos_lst[i-1]
                                 for x in self.xpos_lst[i-1]
@@ -264,7 +269,7 @@ class CVRP():
                                     self.model.addConstr(
                                         gp.quicksum((min(x + self.boxes[i][0], x_pp + self.boxes[j][0]) - max(x, x_pp)) * \
                                                     (min(y + self.boxes[i][1], y_pp + self.boxes[j][1]) - max(y, y_pp)) * \
-                                                    self.a[x_pp, y_pp, z-self.boxes[j][2], j, l, v, u]
+                                                    self.a[x_pp, y_pp, z-self.boxes[j][2], j, l, u, v]
                                                     for j in self.boxID if z - self.boxes[j][2] >= 0 and z - self.boxes[j][2] in self.zpos
                                                     for l in self.nodes[1:]
                                                     for u in self.nodes[:-1] if u >= t
@@ -272,7 +277,7 @@ class CVRP():
                                                     for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[j][1] - 1
                                         )
                                         >=
-                                        self.boxes[i][0] * self.boxes[i][1] * self.a[x, y, z, i, k, v, t]
+                                        self.boxes[i][0] * self.boxes[i][1] * self.a[x, y, z, i, k, t, v]
                                     )
 
     def constraintFourteen(self):
@@ -287,7 +292,7 @@ class CVRP():
                             for z in self.zpos_lst[i-1]:
                                 self.model.addConstr(
                                     (x + self.boxes[i][0]) * \
-                                    gp.quicksum(self.a[x, y, z, i, k, v, t] for t in self.stages[:-1])
+                                    gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1])
                                     <=
                                     self.l_p[k, v]
                                 )
@@ -307,8 +312,8 @@ class CVRP():
                                     self.model.addConstr(
                                         self.l_p[l, v] - self.maximum_reach[i-1][k-2] # i starts at 1, k at 2 but are indexed at 0.
                                         <=
-                                        x * gp.quicksum(self.a[x, y, z, i, k, v, t] for t in self.stages[:-1]) + \
-                                        (1 - gp.quicksum(self.a[x, y, z, i, k, v, t] for t in self.stages[:-1])) * self.M1 + \
+                                        x * gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1]) + \
+                                        (1 - gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1])) * self.M1 + \
                                         (1 - gp.quicksum(self.d[k, l, v, t] for t in self.stages[:-1])) * self.M2
                                     )
     def constraintSixteen(self):
@@ -337,6 +342,35 @@ class CVRP():
                     <=
                     self.dimensions["length"]
                 )
+
+    def constraintEighteen(self):
+        '''
+        Constraint Eighteen presented in paper, load-bearing strength, ensures boxes are not damaged by pressure
+        '''
+        for x_p in self.xpos:
+            for y_p in self.ypos:
+                for z_p in self.zpos:
+                    for v in vehicles:
+                        self.model.addConstr(
+                            gp.quicksum((self.p[j-1] / (self.boxes[j][0] * self.boxes[j][1])) * self.a[x_pp, y_pp, z_pp, j, l, u, v]
+                                        for j in self.boxID
+                                        for l in self.nodes[1:]
+                                        for u in self.nodes[:-1]
+                                        for x_pp in self.xpos_lst[j-1] if x_p - self.boxes[j][0] + 1 <= x_pp <= x_p
+                                        for y_pp in self.ypos_lst[j-1] if y_p - self.boxes[j][1] + 1 <= y_pp <= y_p
+                                        for z_pp in self.zpos_lst[j-1] if z_p + 1 <= z_pp <= self.dimensions["height"] - self.boxes[j][2]
+                            )
+                            <=
+                            gp.quicksum(self.sigma[i-1] * self.a[x, y, z, i, k, t, v]
+                                        for i in self.boxID
+                                        for k in self.nodes[1:]
+                                        for t in self.stages[:-1]
+                                        for x in self.xpos_lst[i-1] if x_p - self.boxes[i][0] + 1 <= x <= x_p
+                                        for y in self.ypos_lst[i-1] if y_p - self.boxes[i][1] + 1 <= y <= y_p
+                                        for z in self.zpos_lst[i-1] if z_p - self.boxes[i][2] + 1 <= z <= z_p
+                            )
+                        )
+
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
@@ -386,7 +420,7 @@ if __name__ == "__main__":
     vehicles = [0]
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
-    Nconstraints = 17
+    Nconstraints = 19
     constraints = constraintGenerator(range(1, Nconstraints+1))
     print('constraints', constraints)
 
@@ -403,15 +437,24 @@ if __name__ == "__main__":
     #           3: {2: 2, 3: 4, 4: 0, 5: 1},
     #           4: {2: 4, 3: 2, 4: 0, 5: 1}}
     
-    demand = {1: {2: 12, 3: 1, 4: 2, 5: 0},
+    demand = {1: {2: 2, 3: 1, 4: 2, 5: 0},
               2: {2: 0, 3: 1, 4: 1, 5: 0},
               3: {2: 0, 3: 0, 4: 1, 5: 1},
               4: {2: 1, 3: 0, 4: 0, 5: 1}}
 
-    maximum_reach = [[boxes[i+1][0] for k in nodes[1:]] for i in range(len(boxes))]
+    # Reach for removing boxes
+    maximum_reach = [[boxes[i][0] for k in nodes[1:]] for i in boxes.keys()]
+
+    # Fragility, set to 0 for no boxes on top of this box type, higher value means more load bearing capability
+    sigma = [0 for i in boxes.keys()]
+
+    # weight of box of type i
+    density = 1
+    p = [density * boxes[i][0] * boxes[i][1] * boxes[i][2] for i in boxes.keys()]
+
 
     # Problem Creation
-    problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, maximum_reach, constraints=constraints)
+    problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, maximum_reach, p, sigma, constraints=constraints)
     print("Model Created, starting optimization...")
 
     # Optimize model
@@ -434,8 +477,8 @@ if __name__ == "__main__":
         for i, j, v, t in problem.d.keys():
             if problem.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
                 print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {links[i, j]}")
-        for x, y, z, i, k, v, t in problem.a.keys():
-            if problem.a[x, y, z, i, k, v, t].X > 0.5:
+        for x, y, z, i, k, t, v in problem.a.keys():
+            if problem.a[x, y, z, i, k, t, v].X > 0.5:
                 if v == 0:
                     used_boxes1[i].append([x, y, z])
                 if v == 1:

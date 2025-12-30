@@ -25,7 +25,9 @@ def constraintGenerator(active) -> dict:
                    "constraintFourteen": False,
                    "constraintFifteen": False,
                    "constraintSixteen": False,
-                   "constraintSeventeen": False}
+                   "constraintSeventeen": False,
+                   "constraintEighteen": False,
+                   "constraintNineteenDummy": None}
 
     # Range Activation (range(constraint_start, constraint_end+1))
     if isinstance(active, range):
