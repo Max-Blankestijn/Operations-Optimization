@@ -110,6 +110,19 @@ def make_links(nodes):
     return links
 
 
+def reachable_positions(sizes, counts, max_pos):
+    positions = {0}
+    for size, count in zip(sizes, counts):
+        new_positions = set()
+        for p in positions:
+            for k in range(1, count + 1):
+                v = p + k * size
+                if v <= max_pos:
+                    new_positions.add(v)
+        positions |= new_positions
+    return positions
+
+
 if __name__ == "__main__":
     # Example usage of constraintGenerator with both range and list
     constraint_dict = constraintGenerator(range(1, 9))

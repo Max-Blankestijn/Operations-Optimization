@@ -25,10 +25,35 @@ class CVRP():
         self.boxes = boxes
         self.boxID = list(boxes.keys())
 
-        # Compute list of all possible length, width and height locations. To be reduced using form of the paper
-        self.length = [i for i in range(0, dimensions["length"]-np.min([value[0] for value in self.boxes.values()])+1)]
-        self.width = [i for i in range(0, dimensions["width"]-np.min([value[1] for value in self.boxes.values()])+1)]
-        self.height = [i for i in range(0, dimensions["height"]-np.min([value[2] for value in self.boxes.values()])+1)]
+        # Create lists with box lengths, widths, heights and the amount of a given box
+        sizes_L = []
+        sizes_W = []
+        sizes_H = []
+        counts = []
+
+        for box_id, dims in self.boxes.items():
+            sizes_L.append(dims[0])
+            sizes_W.append(dims[1])
+            sizes_H.append(dims[2])
+            counts.append(sum(self.demand[box_id].values()))
+
+        # Extract minimum dimensions (take transpose of dictionary values and take minimum)
+        min_L, min_W, min_H = map(min, zip(*boxes.values()))
+
+        # Create general set of possible positions
+        self.xpos = reachable_positions(sizes_L, counts, self.dimensions["length"] - min_L)
+        self.ypos = reachable_positions(sizes_W, counts, self.dimensions["width"] - min_W)
+        self.zpos = reachable_positions(sizes_H, counts, self.dimensions["height"] - min_H)
+
+        # Limit box i's positions to vehicle dimension minus box i's dimension to keep box inside
+        self.xpos_lst = []
+        self.ypos_lst = []
+        self.zpos_lst = []
+
+        for box_id, dims in self.boxes.items():
+            self.xpos_lst.append({x for x in self.xpos if x <= self.dimensions["length"] - dims[0]})
+            self.ypos_lst.append({y for y in self.ypos if y <= self.dimensions["width"] - dims[1]})
+            self.zpos_lst.append({z for z in self.zpos if z <= self.dimensions["height"] - dims[2]})
 
         # Define time stages and active constraints
         self.stages = [i+1 for i in range(len(nodes))]
@@ -57,7 +82,7 @@ class CVRP():
                                     name='d')
 
         # Binary loading decision variables \(a_{xyz}^{iktv}\)
-        self.a = self.model.addVars(self.length, self.width, self.height, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1], 
+        self.a = self.model.addVars(self.xpos, self.ypos, self.zpos, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1],
                                     vtype=GRB.BINARY,
                                     name='a')
 
@@ -165,9 +190,9 @@ class CVRP():
                     self.model.addConstr(
                         gp.quicksum(self.a[x, y, z, i, k, v, t]
                                     for i in self.boxID
-                                    for x in self.length
-                                    for y in self.width
-                                    for z in self.height)
+                                    for x in self.xpos
+                                    for y in self.ypos
+                                    for z in self.zpos)
                         ==
                         gp.quicksum(self.demand[i][k] * self.d[l, k, v, t]
                                     for i in self.boxID
@@ -179,21 +204,21 @@ class CVRP():
         '''
         Constraint ten presented in paper, ensures boxes do not overlap. (Slows down model significantly)
         '''
-        for x_prime in self.length:
-            for y_prime in self.width:
-                for z_prime in self.height:
+        for x_prime in self.xpos:
+            for y_prime in self.ypos:
+                for z_prime in self.zpos:
                     for v in self.vehicles:
                         self.model.addConstr(
                             gp.quicksum(self.a[x, y, z, i, k, v, t]
-                                        for z in self.height
-                                        for y in self.width
-                                        for x in self.length
                                         for i in self.boxID
+                                        for k in self.nodes[1:]
+                                        for t in self.stages[:-1]
+                                        for x in self.xpos_lst[i-1]
+                                        for y in self.ypos_lst[i-1]
+                                        for z in self.zpos_lst[i-1]
                                         if x_prime - self.boxes[i][0] + 1 <= x <= x_prime
                                         if y_prime - self.boxes[i][1] + 1 <= y <= y_prime
                                         if z_prime - self.boxes[i][2] + 1 <= z <= z_prime
-                                        for t in self.stages[:-1]
-                                        for k in self.nodes[1:]
                             )
                             <=
                             1,
@@ -206,12 +231,11 @@ class CVRP():
         '''
         for i in self.boxID:
             for k in self.nodes[1:]:
-                print('jooo', self.demand[i][k])
                 self.model.addConstr(
                     gp.quicksum(self.a[x, y, z, i, k, v, t]
-                                for z in self.height
-                                for y in self.width
-                                for x in self.length
+                                for z in self.zpos_lst[i-1]
+                                for y in self.ypos_lst[i-1]
+                                for x in self.xpos_lst[i-1]
                                 for v in self.vehicles
                                 for t in self.stages[:-1])
                     ==
@@ -225,9 +249,9 @@ class CVRP():
     #         for k in self.nodes[1:]:
     #             for t in self.stages[:-1]:
     #                 for v in self.vehicles:
-    #                     for x in self.length: # needs to become reduced version (X_t)
-    #                         for y in self.width: #idem
-    #                             for z in self.height: #idem, need to ad \{0}
+    #                     for x in self.xpos: # needs to become reduced version (X_t)
+    #                         for y in self.ypos: #idem
+    #                             for z in self.zpos: #idem, need to ad \{0}
 
 
 
@@ -286,7 +310,7 @@ if __name__ == "__main__":
     # Boxes
     boxes = {1: [2, 3, 4],
              2: [4, 2, 4],
-             3: [4, 3, 3],
+             3: [3, 3, 3],
              4: [6, 2, 3]}
 
     # Customer Demand
