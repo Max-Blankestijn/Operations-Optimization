@@ -286,9 +286,7 @@ class CVRP():
                             for z in self.zpos_lst[i-1]:
                                 self.model.addConstr(
                                     (x + self.boxes[i][0]) * \
-                                    gp.quicksum(a[x, y, z, i, k, v, t]
-                                                for t in self.stages[:-1]
-                                    )
+                                    gp.quicksum(self.a[x, y, z, i, k, v, t] for t in self.stages[:-1])
                                     <=
                                     self.l_p[k, v]
                                 )
@@ -305,7 +303,13 @@ class CVRP():
                         for x in self.xpos_lst[i-1]:
                             for y in self.ypos_lst[i-1]:
                                 for z in self.zpos_lst[i-1]:
-
+                                    self.model.addConstr(
+                                        self.l_p[l, v] - 10
+                                        <=
+                                        x * gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1]) + \
+                                        (1 - gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1])) * self.M1 + \
+                                        (1 - gp.quicksum(self.d[k, l, v, t] for t in self.stages[:-1])) * self.M2
+                                    )
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
