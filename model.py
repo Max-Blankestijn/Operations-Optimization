@@ -51,9 +51,9 @@ class CVRP():
         self.zpos_lst = []
 
         for box_id, dims in self.boxes.items():
-            self.xpos_lst.append({x for x in self.xpos if x <= self.dimensions["length"] - dims[0]})
-            self.ypos_lst.append({y for y in self.ypos if y <= self.dimensions["width"] - dims[1]})
-            self.zpos_lst.append({z for z in self.zpos if z <= self.dimensions["height"] - dims[2]})
+            self.xpos_lst.append([x for x in self.xpos if x <= self.dimensions["length"] - dims[0]])
+            self.ypos_lst.append([y for y in self.ypos if y <= self.dimensions["width"] - dims[1]])
+            self.zpos_lst.append([z for z in self.zpos if z <= self.dimensions["height"] - dims[2]])
 
         # Define time stages and active constraints
         self.stages = [i+1 for i in range(len(nodes))]
@@ -85,6 +85,10 @@ class CVRP():
         self.a = self.model.addVars(self.xpos, self.ypos, self.zpos, self.boxID, self.nodes[1:], self.vehicles, self.stages[:-1],
                                     vtype=GRB.BINARY,
                                     name='a')
+
+        # Auxiliary real variable \(L'_{kv}\)
+        self.l_p = self.model.addVars(self.nodes[:-1], self.vehicles,
+                                    name='l_p')
 
     def ObjectiveFunc(self):
         '''
@@ -213,12 +217,9 @@ class CVRP():
                                         for i in self.boxID
                                         for k in self.nodes[1:]
                                         for t in self.stages[:-1]
-                                        for x in self.xpos_lst[i-1]
-                                        for y in self.ypos_lst[i-1]
-                                        for z in self.zpos_lst[i-1]
-                                        if x_prime - self.boxes[i][0] + 1 <= x <= x_prime
-                                        if y_prime - self.boxes[i][1] + 1 <= y <= y_prime
-                                        if z_prime - self.boxes[i][2] + 1 <= z <= z_prime
+                                        for x in self.xpos_lst[i-1] if x_prime - self.boxes[i][0] + 1 <= x <= x_prime
+                                        for y in self.ypos_lst[i-1] if y_prime - self.boxes[i][1] + 1 <= y <= y_prime
+                                        for z in self.zpos_lst[i-1] if z_prime - self.boxes[i][2] + 1 <= z <= z_prime
                             )
                             <=
                             1,
@@ -241,19 +242,51 @@ class CVRP():
                     ==
                     self.demand[i][k],
                     name="11|DemandSatisfiability"
-
                 )
 
-    # def constraintThirteen(self):
-    #     for i in self.boxID:
-    #         for k in self.nodes[1:]:
-    #             for t in self.stages[:-1]:
-    #                 for v in self.vehicles:
-    #                     for x in self.xpos: # needs to become reduced version (X_t)
-    #                         for y in self.ypos: #idem
-    #                             for z in self.zpos: #idem, need to ad \{0}
+    def constraintThirteen(self):
+        '''
+        Constraint thirteen presented in paper, ensures area of the bottom face of a box is completely supported
+        '''
+        for i in self.boxID:
+            for k in self.nodes[1:]:
+                for t in self.stages[:-1]:
+                    for v in self.vehicles:
+                        for x in self.xpos_lst[i-1]:
+                            for y in self.ypos_lst[i-1]:
+                                for z in self.zpos_lst[i-1][1:]:
+                                    self.model.addConstr(
+                                        gp.quicksum((min(x + self.boxes[i][0], x_pp + self.boxes[j][0]) - max(x, x_pp)) * \
+                                                    (min(y + self.boxes[i][1], y_pp + self.boxes[j][1]) - max(y, y_pp)) * \
+                                                    self.a[x_pp, y_pp, z-self.boxes[j][2], j, l, v, u]
+                                                    for j in self.boxID if z - self.boxes[j][2] >= 0 and z - self.boxes[j][2] in self.zpos
+                                                    for l in self.nodes[1:]
+                                                    for u in self.nodes[:-1] if u >= t
+                                                    for x_pp in self.xpos_lst[j-1] if x - self.boxes[j][0] + 1 <= x_pp <= x + self.boxes[j][0] - 1
+                                                    for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[j][1] - 1
+                                        )
+                                        >=
+                                        self.boxes[i][0] * self.boxes[i][1] * self.a[x, y, z, i, k, v, t]
+                                    )
 
-
+    def constraintFourteen(self):
+        '''
+        Constraint fourteen presented in paper, multidrop situation constraint 1
+        '''
+        for i in self.boxID:
+            for k in self.nodes[1:]:
+                for v in self.vehicles:
+                    for x in self.xpos_lst[i-1]:
+                        for y in self.ypos_lst[i-1]:
+                            for z in self.zpos_lst[i-1]:
+                                self.model.addConstr(
+                                    (x + self.boxes[i][0]) * \
+                                    gp.quicksum(a[x, y, z, i, k, v, t]
+                                                for t in self.stages[:-1]
+                                    )
+                                    <=
+                                    self.l_p[k, v]
+                                )
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
@@ -303,7 +336,7 @@ if __name__ == "__main__":
     vehicles = [0]
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
-    Nconstraints = 12
+    Nconstraints = 13
     constraints = constraintGenerator(range(1, Nconstraints+1))
     print('constraints', constraints)
 
@@ -320,7 +353,7 @@ if __name__ == "__main__":
     #           3: {2: 2, 3: 4, 4: 0, 5: 1},
     #           4: {2: 4, 3: 2, 4: 0, 5: 1}}
     
-    demand = {1: {2: 1, 3: 1, 4: 0, 5: 0},
+    demand = {1: {2: 12, 3: 1, 4: 2, 5: 0},
               2: {2: 0, 3: 1, 4: 1, 5: 0},
               3: {2: 0, 3: 0, 4: 1, 5: 1},
               4: {2: 1, 3: 0, 4: 0, 5: 1}}
