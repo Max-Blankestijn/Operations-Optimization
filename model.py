@@ -9,7 +9,7 @@ class CVRP():
     '''
     class containing a three-dimensional loading capacitated vehicle routing problem (3L-CVRP)
     '''
-    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, demand, constraints):
+    def __init__(self, name, nodes, links, vehicles, dimensions, boxes, demand, maximum_reach, constraints):
 
         # Define the nodes and demands (Depot 0, rest customer nodes)
         self.nodes = nodes
@@ -24,6 +24,7 @@ class CVRP():
         # Box sizes and IDs
         self.boxes = boxes
         self.boxID = list(boxes.keys())
+        self.maximum_reach = maximum_reach
 
         # Large numbers
         self.M1 = 1.1 * sum(self.boxes[i][0] * sum(self.demand[i].values()) for i in self.boxes)
@@ -304,12 +305,16 @@ class CVRP():
                             for y in self.ypos_lst[i-1]:
                                 for z in self.zpos_lst[i-1]:
                                     self.model.addConstr(
-                                        self.l_p[l, v] - 10
+                                        self.l_p[l, v] - self.maximum_reach[i][k]
                                         <=
                                         x * gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1]) + \
                                         (1 - gp.quicksum(self.a[x, y, z, i, k, t, v] for t in self.stages[:-1])) * self.M1 + \
                                         (1 - gp.quicksum(self.d[k, l, v, t] for t in self.stages[:-1])) * self.M2
                                     )
+    def constraintFifteen(self):
+        '''
+        Constraint fifteen presented in paper, multidrop situation constraint 2
+        '''
 
 if __name__ == "__main__":
     # Make results reproducable for the time being
@@ -381,8 +386,10 @@ if __name__ == "__main__":
               3: {2: 0, 3: 0, 4: 1, 5: 1},
               4: {2: 1, 3: 0, 4: 0, 5: 1}}
 
+    maximum_reach = [[boxes[i+1][0] for k in nodes[1:]] for i in range(len(boxes))]
+
     # Problem Creation
-    problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, constraints=constraints)
+    problem = CVRP("3L_CVRP", nodes, links, vehicles, dimensions, boxes, demand, maximum_reach, constraints=constraints)
     print("Model Created, starting optimization...")
 
     # Optimize model
