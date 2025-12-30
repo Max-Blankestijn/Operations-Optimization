@@ -325,6 +325,19 @@ class CVRP():
                         (1 - gp.quicksum(self.d[k, l, v, t] for t in self.stages[:-1])) * self.M3
                     )
 
+
+    def constraintSeventeen(self):
+        '''
+        Constraint Seventeen presented in paper, multidrop situation constraint 4
+        '''
+        for k in self.nodes[1:]:
+            for v in vehicles:
+                self.model.addConstr(
+                    self.l_p[k, v]
+                    <=
+                    self.dimensions["length"]
+                )
+
 if __name__ == "__main__":
     # Make results reproducable for the time being
     np.random.seed(0)
@@ -373,7 +386,7 @@ if __name__ == "__main__":
     vehicles = [0]
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
-    Nconstraints = 16
+    Nconstraints = 17
     constraints = constraintGenerator(range(1, Nconstraints+1))
     print('constraints', constraints)
 
