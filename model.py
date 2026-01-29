@@ -177,8 +177,6 @@ class CVRP():
                         name="5|CustomerToCustomer"
                     )
     
-    def constraintSeven(self):
-        return
 
     def constraintEight(self):
         '''
@@ -322,7 +320,7 @@ class CVRP():
         '''
         for k in self.nodes[1:]:
             for l in self.nodes[1:]:
-                for v in vehicles:
+                for v in self.vehicles:
                     self.model.addConstr(
                         self.l_p[l, v]
                         <=
@@ -336,7 +334,7 @@ class CVRP():
         Constraint Seventeen presented in paper, multidrop situation constraint 4
         '''
         for k in self.nodes[1:]:
-            for v in vehicles:
+            for v in self.vehicles:
                 self.model.addConstr(
                     self.l_p[k, v]
                     <=
@@ -350,7 +348,7 @@ class CVRP():
         for x_p in self.xpos:
             for y_p in self.ypos:
                 for z_p in self.zpos:
-                    for v in vehicles:
+                    for v in self.vehicles:
                         self.model.addConstr(
                             gp.quicksum((self.p[j-1] / (self.boxes[j][0] * self.boxes[j][1])) * self.a[x_pp, y_pp, z_pp, j, l, u, v]
                                         for j in self.boxID

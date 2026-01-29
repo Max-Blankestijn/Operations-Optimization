@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import random
 
 def constraintGenerator(active) -> dict:
     '''
@@ -116,6 +117,25 @@ def make_links(nodes):
         if i != j:
             links[(j, i)] = {"distance": links[(i, j)]["distance"]}
     return links
+
+def make_boxes(amount):
+    boxes = {1: [2, 3, 4],
+             2: [4, 2, 4],
+             3: [4, 3, 3],
+             4: [6, 2, 3],
+             5: [1, 2, 1],
+             6: [3, 3, 3]}
+    return {k: boxes[k] for k in range(1, amount+1)}
+
+def make_demand(box_amount, node_amount):
+    random.seed(58)
+    return{
+            i: {
+            j: random.randint(0, 2)
+            for j in range(2, node_amount + 1)
+        }
+        for i in range(1, box_amount + 1)
+    }
 
 
 def reachable_positions(sizes, counts, max_pos):
