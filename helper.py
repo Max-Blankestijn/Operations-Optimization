@@ -137,6 +137,12 @@ def make_demand(box_amount, node_amount):
         for i in range(1, box_amount + 1)
     }
 
+def get_model(self, name):
+    for n, model in self.solved_models:
+        if n == name:
+            return model
+    return None
+
 
 def reachable_positions(sizes, counts, max_pos):
     positions = {0}

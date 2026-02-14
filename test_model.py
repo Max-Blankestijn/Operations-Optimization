@@ -4,7 +4,7 @@ import gurobipy as gp
 from gurobipy import GRB
 
 from model import CVRP
-from helper import make_links, make_boxes, make_demand
+from helper import make_links, make_boxes, make_demand, get_model
 
 class TestCVRP(unittest.TestCase):
 
@@ -42,14 +42,31 @@ class TestCVRP(unittest.TestCase):
             {"name": "PerfectFit4"         , "node_amount": 2, "vehicle_amount": 2, "box_amount": 1,
             "vehicle_size": {"length": 2, "width": 3, "height": 4}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
 
-            #Tests to show that boxes don't fit
+            #Tests to show that boxes don't fit, these scenarios should be infeasible
             {"name": "NotSoPerfectFit1"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
             "vehicle_size": {"length": 1.9, "width": 3, "height": 4}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
             {"name": "NotSoPerfectFit2"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
             "vehicle_size": {"length": 2, "width": 2.9, "height": 4}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
             {"name": "NotSoPerfectFit3"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
-            "vehicle_size": {"length": 2, "width": 3, "height": 3.9}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}}
+            "vehicle_size": {"length": 2, "width": 3, "height": 3.9}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
+            {"name": "NotSoPerfectFit4"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+            "vehicle_size": {"length": 2, "width": 5.9, "height": 4}, "demand":{1: {2: 2}}, "boxes": {1: [2,3,4]}},
             # {"name": "Large_3veh_20nodes", "nodes": list(range(1, 21)), "vehicles": [0, 1, 2], "box_amount": 6},
+
+            #Hand verifiable tests
+            # These tests have link combinations which have a very obvious solution (i.e straight line)
+            # 1 - 2 - 3 - 4 - 5
+            # 1 is the start node, between each node is a distance of 5, so between 1 - 2 = 5, 1 - 3 = 10, 1 - 4 = 15, 2 - 3 = 5 etc.
+            {"name": "StaightLine_1veh", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
+             "demand": {1: {2:1, 3:1, 4:1, 5:1}}, 
+             "links": {
+                    (i, j): {"distance": 9999999 if i == j else abs(i - j) * 5}
+                        for i in range(1, 5 + 1)
+                        for j in range(1, 5 + 1)
+                },
+             "vehicle_size": {"length":10, "width": 2, "height": 2},
+             "boxes": {1: [2,2,2]}
+             },
         ]
 
         for scenario in cls.test_scenarios:
@@ -408,7 +425,7 @@ class TestCVRP(unittest.TestCase):
         """
 
         scenario_names = [scenario["name"] for scenario in self.test_scenarios]
-        impossible_tests = ["NotSoPerfectFit1", "NotSoPerfectFit2", "NotSoPerfectFit3"]
+        impossible_tests = ["NotSoPerfectFit1", "NotSoPerfectFit2", "NotSoPerfectFit3", "NotSoPerfectFit4"]
 
         infeasible_names = {name for name, _ in self.infeasible_models}
         solved_names = set(name for name, _ in self.solved_models)
@@ -418,7 +435,7 @@ class TestCVRP(unittest.TestCase):
                 self.assertIn(
                     name,
                     infeasible_names,
-                    msg=f"{name} should be infeasible but was not"
+                    msg=f"{name} should be infeasible but is not"
                 )
             else:
                 self.assertIn(
@@ -426,6 +443,12 @@ class TestCVRP(unittest.TestCase):
                     solved_names,
                     msg=f"{name} should be feasible but is not"
                 )
+    
+    def test_obvious_solutions(self):
+        line_model = get_model(self, "StaightLine_1veh")
+        print(line_model)
+
+        print(line_model.a[0,0,0,0,0,1,0])
                                                         
 
                             
