@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import random
+import math
 
 def constraintGenerator(active) -> dict:
     '''
@@ -163,3 +164,35 @@ if __name__ == "__main__":
     print(constraint_dict)
     constraint_dict = constraintGenerator([2, 3, 5, 8])
     print(constraint_dict)
+
+
+
+def create_links_from_coordinates(node_coordinates):
+    """
+    node_coordinates: dict
+        Example:
+        {
+            1: (x1, y1),
+            2: (x2, y2),
+            ...
+        }
+
+    Returns:
+        dict in the format:
+        {
+            (i, j): {"distance": ...}
+        }
+    """
+    
+    links = {
+        (i, j): {
+            "distance": 9999999 if i == j
+            else math.dist(node_coordinates[i], node_coordinates[j])
+        }
+        for i in node_coordinates
+        for j in node_coordinates
+    }
+    
+    return links
+
+

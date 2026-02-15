@@ -4,7 +4,7 @@ import gurobipy as gp
 from gurobipy import GRB
 
 from model import CVRP
-from helper import make_links, make_boxes, make_demand, get_model
+from helper import make_links, make_boxes, make_demand, get_model, create_links_from_coordinates
 
 class TestCVRP(unittest.TestCase):
 
@@ -21,16 +21,25 @@ class TestCVRP(unittest.TestCase):
         cls.infeasible_models = []
 
         # Different configurations
-        # If left unspecified: node_amount = 6, vehicle_amount = 2, box_amount = 3
+        # If left unspecified: node_amount = 6, vehicle_amount = 2, box_amount = 3 (number of types of boxes)
         cls.test_scenarios = [
             {"name": "Small_1veh_3nodes_1b", "node_amount": 3, "vehicle_amount": 1, "box_amount": 1},
             {"name": "Small_1veh_3nodes_2b", "node_amount": 3, "vehicle_amount": 1, "box_amount": 2},
             {"name": "Small_1veh_3nodes_3b", "node_amount": 3, "vehicle_amount": 1, "box_amount": 3},
             {"name": "Small_1veh_3nodes_4b", "node_amount": 3, "vehicle_amount": 1, "box_amount": 4},
             {"name": "Small_1veh_3nodes_5b", "node_amount": 3, "vehicle_amount": 1, "box_amount": 5},
+            {"name": "Small_2veh_3nodes_1b", "node_amount": 3, "box_amount": 1},
+            {"name": "Small_2veh_3nodes_2b", "node_amount": 3, "box_amount": 2},
             {"name": "Medium_1veh_6nodes_2b"  , "vehicles": 1, "box_amount": 2},
             {"name": "Medium_2veh_6nodes_2b"  , "vehicles": 2, "box_amount": 2},
             {"name": "Medium_2veh_6nodes_3b"  , "vehicles": 2, "box_amount": 3},
+
+            #More vehicles than boxes
+            {"name": "Medium_3veh_3nodes", "node_amount": 3, "vehicles": 3, "box_amount": 1,
+              "demand": {1: {2:1, 3:1}}},
+            {"name": "Medium_3veh_3nodes", "node_amount": 3, "vehicles": 3, "box_amount": 2,
+              "demand": {1: {2:1, 3:0},
+                         2: {2:0, 3:1}}},
             
             #Tests to show that boxes fit exactly
             {"name": "PerfectFit1"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
@@ -59,13 +68,19 @@ class TestCVRP(unittest.TestCase):
             # 1 is the start node, between each node is a distance of 5, so between 1 - 2 = 5, 1 - 3 = 10, 1 - 4 = 15, 2 - 3 = 5 etc.
             {"name": "StaightLine_1veh", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
              "demand": {1: {2:1, 3:1, 4:1, 5:1}}, 
-             "links": {
-                    (i, j): {"distance": 9999999 if i == j else abs(i - j) * 5}
-                        for i in range(1, 5 + 1)
-                        for j in range(1, 5 + 1)
-                },
+             "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(10, 5), 4: (10, -5), 5:(0,-5)}),
              "vehicle_size": {"length":10, "width": 2, "height": 2},
              "boxes": {1: [2,2,2]}
+             },
+
+            #Same case as before, but with additional box at node 3, only 2 logical ways of packing
+             {"name": "StaightLine_1veh2box", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
+             "demand": {1: {2:1, 3:1, 4:1, 5:1},
+                        2: {2:0, 3:1, 4:0, 5:0}}, 
+             "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(10, 5), 4: (10, -5), 5:(0,-5)}),
+             "vehicle_size": {"length":9, "width": 2, "height": 2},
+             "boxes": {1: [2,2,2],
+                       2: [1,2,2]}
              },
         ]
 
@@ -446,12 +461,27 @@ class TestCVRP(unittest.TestCase):
     
     def test_obvious_solutions(self):
         line_model = get_model(self, "StaightLine_1veh")
-        print(line_model)
-
-        print(line_model.a[0,0,0,0,0,1,0])
-                                                        
-
-                            
+        self.assertAlmostEqual((line_model.a[8, 0, 0, 1, 2, 1, 0].X +
+                                line_model.a[6, 0, 0, 1, 3, 2, 0].X +
+                                line_model.a[4, 0, 0, 1, 4, 3, 0].X +
+                                line_model.a[2, 0, 0, 1, 5, 4, 0].X) or 
+                                (line_model.a[6, 0, 0, 1, 2, 1, 0].X +
+                                line_model.a[4, 0, 0, 1, 3, 2, 0].X +
+                                line_model.a[2, 0, 0, 1, 4, 3, 0].X +
+                                line_model.a[0, 0, 0, 1, 5, 4, 0].X), 4)
+        
+        line_2box_model = get_model(self, "StaightLine_1veh2box")
+        print(line_2box_model.a)
+        self.assertAlmostEqual((line_2box_model.a[7, 0, 0, 1, 5, 1, 0].X +
+                                line_2box_model.a[5, 0, 0, 1, 4, 2, 0].X +
+                                line_2box_model.a[3, 0, 0, 1, 3, 3, 0].X + 
+                                line_2box_model.a[2, 0, 0, 2, 3, 3, 0].X + 
+                                line_2box_model.a[0, 0, 0, 1, 2, 4, 0].X) or 
+                               (line_2box_model.a[7, 0, 0, 1, 5, 1, 0].X +
+                                line_2box_model.a[5, 0, 0, 1, 4, 2, 0].X +
+                                line_2box_model.a[1, 0, 0, 1, 3, 3, 0].X + 
+                                line_2box_model.a[3, 0, 0, 2, 3, 3, 0].X + 
+                                line_2box_model.a[0, 0, 0, 1, 2, 4, 0].X) , 5)          
 
 
 
