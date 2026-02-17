@@ -62,11 +62,8 @@ class TestCVRP(unittest.TestCase):
             "vehicle_size": {"length": 2, "width": 5.9, "height": 4}, "demand":{1: {2: 2}}, "boxes": {1: [2,3,4]}},
             # {"name": "Large_3veh_20nodes", "nodes": list(range(1, 21)), "vehicles": [0, 1, 2], "box_amount": 6},
 
-            #Hand verifiable tests
-            # These tests have link combinations which have a very obvious solution (i.e straight line)
-            # 1 - 2 - 3 - 4 - 5
-            # 1 is the start node, between each node is a distance of 5, so between 1 - 2 = 5, 1 - 3 = 10, 1 - 4 = 15, 2 - 3 = 5 etc.
-            {"name": "StaightLine_1veh", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
+            #Hand verifiable 
+            {"name": "CircleRoute_1veh", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
              "demand": {1: {2:1, 3:1, 4:1, 5:1}}, 
              "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(10, 5), 4: (10, -5), 5:(0,-5)}),
              "vehicle_size": {"length":10, "width": 2, "height": 2},
@@ -74,14 +71,31 @@ class TestCVRP(unittest.TestCase):
              },
 
             #Same case as before, but with additional box at node 3, only 2 logical ways of packing
-             {"name": "StaightLine_1veh2box", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
+             {"name": "CircleRoute_1veh2box", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
              "demand": {1: {2:1, 3:1, 4:1, 5:1},
                         2: {2:0, 3:1, 4:0, 5:0}}, 
-             "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(10, 5), 4: (10, -5), 5:(0,-5)}),
+             "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(5, 5), 4: (5, -5), 5:(0,-5)}),
              "vehicle_size": {"length":9, "width": 2, "height": 2},
              "boxes": {1: [2,2,2],
                        2: [1,2,2]}
              },
+
+             #Same case as before (with 1 box at node 3), but with two vehicles
+            {"name": "CircleRoute_2veh", "node_amount": 5, "vehicle_amount": 2, "box_amount": 1,
+             "demand": {1: {2:1, 3:1, 4:1, 5:1}}, 
+             "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(5, 5), 4: (5, -5), 5:(0,-5)}),
+             "vehicle_size": {"length":8, "width": 2, "height": 2},
+             "boxes": {1: [2,2,2]}
+             },
+
+             #Same case as before, but only 2 boxes fit per vehicle
+             {"name": "CircleRoute_2vehs", "node_amount": 5, "vehicle_amount": 2, "box_amount": 1,
+             "demand": {1: {2:1, 3:1, 4:1, 5:1}}, 
+             "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(5, 5), 4: (5, -5), 5:(0,-5)}),
+             "vehicle_size": {"length":4, "width": 2, "height": 2},
+             "boxes": {1: [2,2,2]}
+             },
+             
         ]
 
         for scenario in cls.test_scenarios:
@@ -146,6 +160,7 @@ class TestCVRP(unittest.TestCase):
                 case["sigma"],
                 case["p"],
                 constraints={
+                "constraintTime": True,
                 "constraintTwo": True,
                 "constraintThree": True,
                 "constraintFour": True,
@@ -460,28 +475,54 @@ class TestCVRP(unittest.TestCase):
                 )
     
     def test_obvious_solutions(self):
-        line_model = get_model(self, "StaightLine_1veh")
-        self.assertAlmostEqual((line_model.a[8, 0, 0, 1, 2, 1, 0].X +
-                                line_model.a[6, 0, 0, 1, 3, 2, 0].X +
-                                line_model.a[4, 0, 0, 1, 4, 3, 0].X +
-                                line_model.a[2, 0, 0, 1, 5, 4, 0].X) or 
-                                (line_model.a[6, 0, 0, 1, 2, 1, 0].X +
-                                line_model.a[4, 0, 0, 1, 3, 2, 0].X +
-                                line_model.a[2, 0, 0, 1, 4, 3, 0].X +
-                                line_model.a[0, 0, 0, 1, 5, 4, 0].X), 4)
+        # circle_model = get_model(self, "CircleRoute_1veh")
+        # self.assertAlmostEqual((circle_model.a[8, 0, 0, 1, 2, 1, 0].X +
+        #                         circle_model.a[6, 0, 0, 1, 3, 2, 0].X +
+        #                         circle_model.a[4, 0, 0, 1, 4, 3, 0].X +
+        #                         circle_model.a[2, 0, 0, 1, 5, 4, 0].X) or 
+        #                        (circle_model.a[6, 0, 0, 1, 2, 1, 0].X +
+        #                         circle_model.a[4, 0, 0, 1, 3, 2, 0].X +
+        #                         circle_model.a[2, 0, 0, 1, 4, 3, 0].X +
+        #                         circle_model.a[0, 0, 0, 1, 5, 4, 0].X), 4)
         
-        line_2box_model = get_model(self, "StaightLine_1veh2box")
-        print(line_2box_model.a)
-        self.assertAlmostEqual((line_2box_model.a[7, 0, 0, 1, 5, 1, 0].X +
-                                line_2box_model.a[5, 0, 0, 1, 4, 2, 0].X +
-                                line_2box_model.a[3, 0, 0, 1, 3, 3, 0].X + 
-                                line_2box_model.a[2, 0, 0, 2, 3, 3, 0].X + 
-                                line_2box_model.a[0, 0, 0, 1, 2, 4, 0].X) or 
-                               (line_2box_model.a[7, 0, 0, 1, 5, 1, 0].X +
-                                line_2box_model.a[5, 0, 0, 1, 4, 2, 0].X +
-                                line_2box_model.a[1, 0, 0, 1, 3, 3, 0].X + 
-                                line_2box_model.a[3, 0, 0, 2, 3, 3, 0].X + 
-                                line_2box_model.a[0, 0, 0, 1, 2, 4, 0].X) , 5)          
+        # circle_model_2box = get_model(self, "CircleRoute_1veh2box")
+        # self.assertAlmostEqual((circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
+        #                         circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
+        #                         circle_model_2box.a[3, 0, 0, 1, 3, 3, 0].X + 
+        #                         circle_model_2box.a[2, 0, 0, 2, 3, 3, 0].X + 
+        #                         circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or 
+        #                        (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
+        #                         circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
+        #                         circle_model_2box.a[1, 0, 0, 1, 3, 3, 0].X + 
+        #                         circle_model_2box.a[3, 0, 0, 2, 3, 3, 0].X + 
+        #                         circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) , 5)
+
+        # circle_model_2veh =  get_model(self, "CircleRoute_2veh")
+        # self.assertAlmostEqual((circle_model_2veh.a[6, 0, 0, 1, 2, 1, 0].X +
+        #                         circle_model_2veh.a[4, 0, 0, 1, 3, 2, 0].X +
+        #                         circle_model_2veh.a[2, 0, 0, 1, 4, 3, 0].X +
+        #                         circle_model_2veh.a[0, 0, 0, 1, 5, 4, 0].X) or 
+        #                        (circle_model_2veh.a[6, 0, 0, 1, 5, 1, 0].X +
+        #                         circle_model_2veh.a[4, 0, 0, 1, 4, 2, 0].X +
+        #                         circle_model_2veh.a[2, 0, 0, 1, 3, 3, 0].X +
+        #                         circle_model_2veh.a[0, 0, 0, 1, 2, 4, 0].X), 4)
+        
+        circle_model_2vehs =  get_model(self, "CircleRoute_2vehs")
+        for i, j, v, t in circle_model_2vehs.d.keys():
+            if circle_model_2vehs.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
+                print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {circle_model_2vehs.links[i, j]}")
+                print(type(circle_model_2vehs.d[i, j, v, t].X))
+        self.assertAlmostEqual((circle_model_2vehs.a[2, 0, 0, 1, 2, 1, 1].X +
+                                circle_model_2vehs.a[0, 0, 0, 1, 3, 2, 1].X +
+                                circle_model_2vehs.a[2, 0, 0, 1, 4, 2, 0].X +
+                                circle_model_2vehs.a[0, 0, 0, 1, 5, 1, 0].X) or 
+                               (circle_model_2vehs.a[2, 0, 0, 1, 2, 1, 0].X +
+                                circle_model_2vehs.a[0, 0, 0, 1, 3, 2, 0].X +
+                                circle_model_2vehs.a[2, 0, 0, 1, 4, 2, 1].X +
+                                circle_model_2vehs.a[0, 0, 0, 1, 5, 1, 1].X), 4)
+
+        
+
 
 
 

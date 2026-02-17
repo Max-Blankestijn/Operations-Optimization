@@ -11,7 +11,8 @@ def constraintGenerator(active) -> dict:
     '''
     # Dictionary of all constraints, constraint one, six and eleven are dummy constraints that are always active
     # and used for incremental counting
-    constraints = {"constraintOneDummy": None,
+    constraints = {"constraintTime": False,
+                   "constraintOneDummy": None,
                    "constraintTwo": False,
                    "constraintThree": False,
                    "constraintFour": False,

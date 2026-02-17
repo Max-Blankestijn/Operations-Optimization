@@ -112,6 +112,19 @@ class CVRP():
 
         self.model.setObjective(objective, GRB.MINIMIZE)
 
+    def constraintTime(self):
+        '''
+        Not written as constraint in the paper, but all d_1l^tv = 0 for all l in N\{1}, t in N\{1}, v in V
+        Or vehicles can only leave the depot at the first stage
+        '''
+        for l in self.nodes[1:]:
+            for t in self.stages[1:]:
+                for v in self.vehicles:
+                    self.model.addConstr(
+                        self.d[1,l,v,t] == 0,
+                        name=f"LeaveDepotStage1"
+                    )
+
     def constraintTwo(self):
         '''
         Constraint two presented in the paper, ensures every customer is visited exactly once
