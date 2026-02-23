@@ -114,7 +114,7 @@ class CVRP():
 
     def constraintTime(self):
         '''
-        Not written as constraint in the paper, but all d_1l^tv = 0 for all l in N\{1}, t in N\{1}, v in V
+        Not written as constraint in the paper, all d_1l^tv = 0 for all l in N\{1}, t in N\{1}, v in V
         Or vehicles can only leave the depot at the first stage
         '''
         for l in self.nodes[1:]:
