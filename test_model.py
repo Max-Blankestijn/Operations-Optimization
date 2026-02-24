@@ -66,7 +66,7 @@ class TestCVRP(unittest.TestCase):
             {"name": "CircleRoute_1veh", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
              "demand": {1: {2:1, 3:1, 4:1, 5:1}}, 
              "links": create_links_from_coordinates({1: (0,0), 2: (0,5), 3:(10, 5), 4: (10, -5), 5:(0,-5)}),
-             "vehicle_size": {"length":10, "width": 2, "height": 2},
+             "vehicle_size": {"length":8, "width": 2, "height": 2},
              "boxes": {1: [2,2,2]}
              },
 
@@ -95,6 +95,11 @@ class TestCVRP(unittest.TestCase):
              "vehicle_size": {"length":4, "width": 2, "height": 2},
              "boxes": {1: [2,2,2]}
              },
+
+             #Fragile boxes, 2 boxes to one place, cannot be placed ontop of eachother
+             {"name": "Fragileboxes", "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+              "demand": {1: {2:2}}, "sigma": [0],
+              "vehicle_szie":  {"length":4, "width": 2, "height": 4}}
              
         ]
 
@@ -169,7 +174,7 @@ class TestCVRP(unittest.TestCase):
                 "constraintNine": True,
                 "constraintTen": True,
                 "constraintEleven": True,
-                "constraintThirteen": False, #This constraint makes the code hella slow
+                "constraintThirteen": True, #This constraint makes the code hella slow
                 "constraintFourteen": True,
                 "constraintFifteen": True,
                 "constraintSixteen": True,
@@ -338,29 +343,29 @@ class TestCVRP(unittest.TestCase):
                             "Fail Constraint 11"
                         )
     
-    # def test_constraint_thirteen(self):
-    #     for case_name, model in self.solved_models:
-    #         with self.subTest(case=case_name):
-    #             for i in model.boxID:
-    #                 for k in model.nodes[1:]:
-    #                     for t in model.stages[:-1]:
-    #                         for v in model.vehicles:
-    #                             for x in model.xpos_lst[i-1]:
-    #                                 for y in model.ypos_lst[i-1]:
-    #                                     for z in model.zpos_lst[i-1][1:]:
-    #                                         self.assertGreaterEqual(
-    #                                             sum((min(x + model.boxes[i][0], x_pp + model.boxes[j][0]) - max(x, x_pp)) * \
-    #                                                         (min(y + model.boxes[i][1], y_pp + model.boxes[j][1]) - max(y, y_pp)) * \
-    #                                                         model.a[x_pp, y_pp, z-model.boxes[j][2], j, l, u, v].X
-    #                                                         for j in model.boxID if z - model.boxes[j][2] >= 0 and z - model.boxes[j][2] in model.zpos
-    #                                                         for l in model.nodes[1:]
-    #                                                         for u in model.nodes[:-1] if u >= t
-    #                                                         for x_pp in model.xpos_lst[j-1] if x - model.boxes[j][0] + 1 <= x_pp <= x + model.boxes[j][0] - 1
-    #                                                         for y_pp in model.ypos_lst[j-1] if y - model.boxes[j][1] + 1 <= y_pp <= y + model.boxes[j][1] - 1
-    #                                             ),
-    #                                             model.boxes[i][0] * model.boxes[i][1] * model.a[x, y, z, i, k, t, v].X,
-    #                                             "Fail Constraint 13"
-    #                                         )
+    def test_constraint_thirteen(self):
+        for case_name, model in self.solved_models:
+            with self.subTest(case=case_name):
+                for i in model.boxID:
+                    for k in model.nodes[1:]:
+                        for t in model.stages[:-1]:
+                            for v in model.vehicles:
+                                for x in model.xpos_lst[i-1]:
+                                    for y in model.ypos_lst[i-1]:
+                                        for z in model.zpos_lst[i-1][1:]:
+                                            self.assertGreaterEqual(
+                                                sum((min(x + model.boxes[i][0], x_pp + model.boxes[j][0]) - max(x, x_pp)) * \
+                                                            (min(y + model.boxes[i][1], y_pp + model.boxes[j][1]) - max(y, y_pp)) * \
+                                                            model.a[x_pp, y_pp, z-model.boxes[j][2], j, l, u, v].X
+                                                            for j in model.boxID if z - model.boxes[j][2] >= 0 and z - model.boxes[j][2] in model.zpos
+                                                            for l in model.nodes[1:]
+                                                            for u in model.nodes[:-1] if u >= t
+                                                            for x_pp in model.xpos_lst[j-1] if x - model.boxes[j][0] + 1 <= x_pp <= x + model.boxes[i][0] - 1
+                                                            for y_pp in model.ypos_lst[j-1] if y - model.boxes[j][1] + 1 <= y_pp <= y + model.boxes[i][1] - 1
+                                                ),
+                                                model.boxes[i][0] * model.boxes[i][1] * model.a[x, y, z, i, k, t, v].X,
+                                                "Fail Constraint 13"
+                                            )
 
     def test_constraint_fourteen(self):
         for case_name, model in self.solved_models:
@@ -475,58 +480,88 @@ class TestCVRP(unittest.TestCase):
                 )
     
     def test_obvious_solutions(self):
-        # circle_model = get_model(self, "CircleRoute_1veh")
-        # self.assertAlmostEqual((circle_model.a[8, 0, 0, 1, 2, 1, 0].X +
-        #                         circle_model.a[6, 0, 0, 1, 3, 2, 0].X +
-        #                         circle_model.a[4, 0, 0, 1, 4, 3, 0].X +
-        #                         circle_model.a[2, 0, 0, 1, 5, 4, 0].X) or 
-        #                        (circle_model.a[6, 0, 0, 1, 2, 1, 0].X +
-        #                         circle_model.a[4, 0, 0, 1, 3, 2, 0].X +
-        #                         circle_model.a[2, 0, 0, 1, 4, 3, 0].X +
-        #                         circle_model.a[0, 0, 0, 1, 5, 4, 0].X), 4)
-        
-        # circle_model_2box = get_model(self, "CircleRoute_1veh2box")
-        # self.assertAlmostEqual((circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
-        #                         circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
-        #                         circle_model_2box.a[3, 0, 0, 1, 3, 3, 0].X + 
-        #                         circle_model_2box.a[2, 0, 0, 2, 3, 3, 0].X + 
-        #                         circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or 
-        #                        (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
-        #                         circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
-        #                         circle_model_2box.a[1, 0, 0, 1, 3, 3, 0].X + 
-        #                         circle_model_2box.a[3, 0, 0, 2, 3, 3, 0].X + 
-        #                         circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) , 5)
+        circle_model = get_model(self, "CircleRoute_1veh")
+        self.assertAlmostEqual(# Vehicle goes 1-2-3-4-5-1
+                               (circle_model.a[6, 0, 0, 1, 2, 1, 0].X +
+                                circle_model.a[4, 0, 0, 1, 3, 2, 0].X +
+                                circle_model.a[2, 0, 0, 1, 4, 3, 0].X +
+                                circle_model.a[0, 0, 0, 1, 5, 4, 0].X) or
 
-        # circle_model_2veh =  get_model(self, "CircleRoute_2veh")
-        # self.assertAlmostEqual((circle_model_2veh.a[6, 0, 0, 1, 2, 1, 0].X +
-        #                         circle_model_2veh.a[4, 0, 0, 1, 3, 2, 0].X +
-        #                         circle_model_2veh.a[2, 0, 0, 1, 4, 3, 0].X +
-        #                         circle_model_2veh.a[0, 0, 0, 1, 5, 4, 0].X) or 
-        #                        (circle_model_2veh.a[6, 0, 0, 1, 5, 1, 0].X +
-        #                         circle_model_2veh.a[4, 0, 0, 1, 4, 2, 0].X +
-        #                         circle_model_2veh.a[2, 0, 0, 1, 3, 3, 0].X +
-        #                         circle_model_2veh.a[0, 0, 0, 1, 2, 4, 0].X), 4)
+                               # Vehicle goes 1-5-4-3-2-1
+                               (circle_model.a[6, 0, 0, 1, 5, 1, 0].X +
+                                circle_model.a[4, 0, 0, 1, 4, 2, 0].X +
+                                circle_model.a[2, 0, 0, 1, 3, 3, 0].X +
+                                circle_model.a[0, 0, 0, 1, 2, 4, 0].X),                              
+                                  4)
+        
+        circle_model_2box = get_model(self, "CircleRoute_1veh2box")
+        self.assertAlmostEqual((circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
+                                circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
+                                circle_model_2box.a[3, 0, 0, 1, 3, 3, 0].X + 
+                                circle_model_2box.a[2, 0, 0, 2, 3, 3, 0].X + 
+                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or 
+                               (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
+                                circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
+                                circle_model_2box.a[1, 0, 0, 1, 3, 3, 0].X + 
+                                circle_model_2box.a[3, 0, 0, 2, 3, 3, 0].X + 
+                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) , 5)
+
+        circle_model_2veh =  get_model(self, "CircleRoute_2veh")
+        self.assertAlmostEqual(# Vehicle 1 goes 1-2-3-4-5-1
+                               (circle_model_2veh.a[6, 0, 0, 1, 2, 1, 0].X +
+                                circle_model_2veh.a[4, 0, 0, 1, 3, 2, 0].X +
+                                circle_model_2veh.a[2, 0, 0, 1, 4, 3, 0].X +
+                                circle_model_2veh.a[0, 0, 0, 1, 5, 4, 0].X) or 
+                                # Vehicle 1 goes 1-5-4-3-2-1
+                               (circle_model_2veh.a[6, 0, 0, 1, 5, 1, 0].X +
+                                circle_model_2veh.a[4, 0, 0, 1, 4, 2, 0].X +
+                                circle_model_2veh.a[2, 0, 0, 1, 3, 3, 0].X +
+                                circle_model_2veh.a[0, 0, 0, 1, 2, 4, 0].X) or
+                                # Vehicle 2 goes 1-2-3-4-5-1
+                               (circle_model_2veh.a[6, 0, 0, 1, 2, 1, 1].X +
+                                circle_model_2veh.a[4, 0, 0, 1, 3, 2, 1].X +
+                                circle_model_2veh.a[2, 0, 0, 1, 4, 3, 1].X +
+                                circle_model_2veh.a[0, 0, 0, 1, 5, 4, 1].X) or 
+                                # Vehicle 2 goes 1-5-4-3-2-1
+                               (circle_model_2veh.a[6, 0, 0, 1, 5, 1, 1].X +
+                                circle_model_2veh.a[4, 0, 0, 1, 4, 2, 1].X +
+                                circle_model_2veh.a[2, 0, 0, 1, 3, 3, 1].X +
+                                circle_model_2veh.a[0, 0, 0, 1, 2, 4, 1].X)
+                                
+                                , 4)
         
         circle_model_2vehs =  get_model(self, "CircleRoute_2vehs")
-        for i, j, v, t in circle_model_2vehs.d.keys():
-            if circle_model_2vehs.d[i, j, v, t].X > 0.5:  # X gives the value after optimization
-                print(f"Vehicle {v} travels from node {i} to {j} at stage {t} | {circle_model_2vehs.links[i, j]}")
-                print(type(circle_model_2vehs.d[i, j, v, t].X))
-        self.assertAlmostEqual((circle_model_2vehs.a[2, 0, 0, 1, 2, 1, 1].X +
-                                circle_model_2vehs.a[0, 0, 0, 1, 3, 2, 1].X +
-                                circle_model_2vehs.a[2, 0, 0, 1, 4, 2, 0].X +
-                                circle_model_2vehs.a[0, 0, 0, 1, 5, 1, 0].X) or 
-                               (circle_model_2vehs.a[2, 0, 0, 1, 2, 1, 0].X +
-                                circle_model_2vehs.a[0, 0, 0, 1, 3, 2, 0].X +
-                                circle_model_2vehs.a[2, 0, 0, 1, 4, 2, 1].X +
-                                circle_model_2vehs.a[0, 0, 0, 1, 5, 1, 1].X), 4)
 
-        
+        self.assertAlmostEqual(#Vehicle one goes 1-2-3-1
+                          ((circle_model_2vehs.a[2,0,0,1,2,1,0].X +
+                            circle_model_2vehs.a[0,0,0,1,3,2,0].X) or
+                            # Vehicle 1 goes 1-3-2-1
+                           (circle_model_2vehs.a[0,0,0,1,2,2,0].X +
+                            circle_model_2vehs.a[2,0,0,1,3,1,0].X) +
 
+                            # vehicle 2 gos 1-4-5-1
+                           (circle_model_2vehs.a[2,0,0,1,5,1,1].X +
+                            circle_model_2vehs.a[0,0,0,1,4,2,1].X) or
+                            # Vehicle 2 goes 1-5-4-1
+                           (circle_model_2vehs.a[0,0,0,1,5,2,1].X +
+                            circle_model_2vehs.a[2,0,0,1,4,1,1].X)) 
+                            
+                            or
 
+                            # Vehicl 2 goes 1-2-3-1
+                          ((circle_model_2vehs.a[2,0,0,1,2,1,1].X +
+                            circle_model_2vehs.a[0,0,0,1,3,2,1].X) or
+                            # Vehicle 2 goes 1-3-2-1
+                           (circle_model_2vehs.a[0,0,0,1,2,2,1].X +
+                            circle_model_2vehs.a[2,0,0,1,3,1,1].X) +
 
-
-
+                            # vehicle 1 gos 1-4-5-1
+                           (circle_model_2vehs.a[2,0,0,1,5,1,0].X +
+                            circle_model_2vehs.a[0,0,0,1,4,2,0].X) or
+                            # Vehicle 1 goes 1-5-4-1
+                           (circle_model_2vehs.a[0,0,0,1,5,2,0].X +
+                            circle_model_2vehs.a[2,0,0,1,4,1,0].X))
+                            ,4)
 
 
 

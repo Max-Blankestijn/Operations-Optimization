@@ -277,15 +277,27 @@ class CVRP():
                         for x in self.xpos_lst[i-1]:
                             for y in self.ypos_lst[i-1]:
                                 for z in self.zpos_lst[i-1][1:]:
+        
+                                    # for value in (
+                                    # (min(x + self.boxes[i][0], x_pp + self.boxes[j][0]) - max(x, x_pp))
+                                    #       for j in self.boxID if z - self.boxes[j][2] in self.zpos
+                                    #                 for l in self.nodes[1:]
+                                    #                 for u in self.nodes[:-1] if u >= t
+                                    #                 for x_pp in self.xpos_lst[j-1] if x - self.boxes[j][0] + 1 <= x_pp <= x + self.boxes[j][0] - 1
+                                    #                 for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[j][1] - 1
+                                    # ):
+                                    #     print(value)
+
                                     self.model.addConstr(
                                         gp.quicksum((min(x + self.boxes[i][0], x_pp + self.boxes[j][0]) - max(x, x_pp)) * \
                                                     (min(y + self.boxes[i][1], y_pp + self.boxes[j][1]) - max(y, y_pp)) * \
                                                     self.a[x_pp, y_pp, z-self.boxes[j][2], j, l, u, v]
-                                                    for j in self.boxID if z - self.boxes[j][2] >= 0 and z - self.boxes[j][2] in self.zpos
+                                                    # for j in self.boxID if z - self.boxes[j][2] >= 0 and z - self.boxes[j][2] in self.zpos
+                                                    for j in self.boxID if z - self.boxes[j][2] in self.zpos
                                                     for l in self.nodes[1:]
                                                     for u in self.nodes[:-1] if u >= t
-                                                    for x_pp in self.xpos_lst[j-1] if x - self.boxes[j][0] + 1 <= x_pp <= x + self.boxes[j][0] - 1
-                                                    for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[j][1] - 1
+                                                    for x_pp in self.xpos_lst[j-1] if x - self.boxes[j][0] + 1 <= x_pp <= x + self.boxes[i][0] - 1
+                                                    for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[i][1] - 1
                                         )
                                         >=
                                         self.boxes[i][0] * self.boxes[i][1] * self.a[x, y, z, i, k, t, v]
