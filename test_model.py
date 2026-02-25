@@ -41,7 +41,7 @@ class TestCVRP(unittest.TestCase):
               "demand": {1: {2:1, 3:0},
                          2: {2:0, 3:1}}},
             
-            #Tests to show that boxes fit exactly
+            # Tests to show that boxes fit exactly
             {"name": "PerfectFit1"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
             "vehicle_size": {"length": 2, "width": 3, "height": 4}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
             {"name": "PerfectFit2"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
@@ -50,6 +50,12 @@ class TestCVRP(unittest.TestCase):
             "vehicle_size": {"length": 4, "width": 3, "height": 4}, "demand":{1: {2: 2}}, "boxes": {1: [2,3,4]}},
             {"name": "PerfectFit4"         , "node_amount": 2, "vehicle_amount": 2, "box_amount": 1,
             "vehicle_size": {"length": 2, "width": 3, "height": 4}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
+            {"name": "PerfectFit5"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+            "vehicle_size": {"length": 1, "width": 1, "height": 2}, "demand":{1: {2: 2}}, "boxes": {1: [1,1,1]}},
+            {"name": "PerfectFit6"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+            "vehicle_size": {"length": 4, "width": 4, "height": 4}, "demand":{1: {2: 8}}, "boxes": {1: [2,2,2]}},
+            {"name": "PerfectFit7"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+            "vehicle_size": {"length": 2, "width": 2, "height": 2}, "demand":{1: {2: 8}}, "boxes": {1: [1,1,1]}},
 
             #Tests to show that boxes don't fit, these scenarios should be infeasible
             {"name": "NotSoPerfectFit1"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
@@ -60,6 +66,12 @@ class TestCVRP(unittest.TestCase):
             "vehicle_size": {"length": 2, "width": 3, "height": 3.9}, "demand":{1: {2: 1}}, "boxes": {1: [2,3,4]}},
             {"name": "NotSoPerfectFit4"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
             "vehicle_size": {"length": 2, "width": 5.9, "height": 4}, "demand":{1: {2: 2}}, "boxes": {1: [2,3,4]}},
+            {"name": "NotSoPerfectFit5"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+            "vehicle_size": {"length": 2, "width": 3, "height": 7.9}, "demand":{1: {2: 2}}, "boxes": {1: [2,3,4]}},
+            # Zero strength - you cant stack boxes
+            {"name": "NotSoPerfectFit6"         , "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
+            "vehicle_size": {"length": 2, "width": 3, "height": 8}, "demand":{1: {2: 2}}, "boxes": {1: [2,3,4]},
+            "sigma": [0]},    
             # {"name": "Large_3veh_20nodes", "nodes": list(range(1, 21)), "vehicles": [0, 1, 2], "box_amount": 6},
 
             #Hand verifiable 
@@ -99,8 +111,29 @@ class TestCVRP(unittest.TestCase):
              #Fragile boxes, 2 boxes to one place, cannot be placed ontop of eachother
              {"name": "Fragileboxes", "node_amount": 2, "vehicle_amount": 1, "box_amount": 1,
               "demand": {1: {2:2}}, "sigma": [0],
-              "vehicle_szie":  {"length":4, "width": 2, "height": 4}}
-             
+              "vehicle_size":  {"length":4, "width": 2, "height": 4},
+              "boxes": {1: [2,2,2]}},
+
+            # Box 2 has to be placed bottom
+             {"name": "OneFragilebox", "node_amount": 2, "vehicle_amount": 1, "box_amount": 2,
+              "demand": {1: {2:1}, 2: {2:1}}, "sigma": [0, 9999],
+              "vehicle_size":  {"length":2, "width": 2, "height": 3},
+              "boxes": {1: [2,2,2],
+                        2: [2,2,1]}}
+
+
+            # Paper case, these are cases that are defined in the paper, verified with visual inspection of the loading
+            # Max reach / density is the same as standard case below
+            {"name": "PaperCase1", "node_amount": 5, "vehicle_amount": 2, "box_amount": 4,
+             "boxes": {1: [2,3,4], 2:[4,2,4], 3:[4,3,3], 4:[6,2,3]},
+             # Key = box, subkey = node, different then in paper
+             "demand": {1: {2:3, 3:0, 4:3, 5:4},
+                        2: {2:1, 3:3, 4:1, 5:3},
+                        3: {2:2, 3:4, 4:0, 5:1},
+                        4: {2:4, 3:2, 4:0, 5:1}},
+             "sigma": [4,4,3,3],
+             "vehicle_size": {"length":12, "width": 8, "height": 8},
+             }
         ]
 
         for scenario in cls.test_scenarios:
@@ -162,8 +195,8 @@ class TestCVRP(unittest.TestCase):
                 case["boxes"],
                 case["demand"],
                 case["maximum_reach"],
-                case["sigma"],
                 case["p"],
+                case["sigma"],
                 constraints={
                 "constraintTime": True,
                 "constraintTwo": True,
@@ -460,7 +493,7 @@ class TestCVRP(unittest.TestCase):
         """
 
         scenario_names = [scenario["name"] for scenario in self.test_scenarios]
-        impossible_tests = ["NotSoPerfectFit1", "NotSoPerfectFit2", "NotSoPerfectFit3", "NotSoPerfectFit4"]
+        impossible_tests = ["NotSoPerfectFit1", "NotSoPerfectFit2", "NotSoPerfectFit3", "NotSoPerfectFit4", "NotSoPerfectFit5", "NotSoPerfectFit6"]
 
         infeasible_names = {name for name, _ in self.infeasible_models}
         solved_names = set(name for name, _ in self.solved_models)
@@ -495,16 +528,31 @@ class TestCVRP(unittest.TestCase):
                                   4)
         
         circle_model_2box = get_model(self, "CircleRoute_1veh2box")
-        self.assertAlmostEqual((circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
+
+        self.assertAlmostEqual(# 1 - 2 - 3 - 4 - 5 - small box in front
+                               (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
                                 circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
                                 circle_model_2box.a[3, 0, 0, 1, 3, 3, 0].X + 
                                 circle_model_2box.a[2, 0, 0, 2, 3, 3, 0].X + 
+                                # 1 - 2 - 3 - 4 - 5 - small box behind
                                 circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or 
                                (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
                                 circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
                                 circle_model_2box.a[1, 0, 0, 1, 3, 3, 0].X + 
                                 circle_model_2box.a[3, 0, 0, 2, 3, 3, 0].X + 
-                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) , 5)
+                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or
+                                # 5 - 4 - 3 - 2 - 1 - small box behind
+                               (circle_model_2box.a[0, 0, 0, 1, 5, 4, 0].X +
+                                circle_model_2box.a[2, 0, 0, 1, 4, 3, 0].X +
+                                circle_model_2box.a[4, 0, 0, 2, 3, 2, 0].X + 
+                                circle_model_2box.a[5, 0, 0, 1, 3, 2, 0].X + 
+                                circle_model_2box.a[7, 0, 0, 1, 2, 1, 0].X) or 
+                                # 5 - 4 - 3 - 2 - 1 - small box in front
+                               (circle_model_2box.a[0, 0, 0, 1, 5, 4, 0].X +
+                                circle_model_2box.a[2, 0, 0, 1, 4, 3, 0].X +
+                                circle_model_2box.a[4, 0, 0, 1, 3, 2, 0].X + 
+                                circle_model_2box.a[6, 0, 0, 2, 3, 2, 0].X + 
+                                circle_model_2box.a[7, 0, 0, 1, 2, 1, 0].X) , 5)
 
         circle_model_2veh =  get_model(self, "CircleRoute_2veh")
         self.assertAlmostEqual(# Vehicle 1 goes 1-2-3-4-5-1
@@ -531,7 +579,6 @@ class TestCVRP(unittest.TestCase):
                                 , 4)
         
         circle_model_2vehs =  get_model(self, "CircleRoute_2vehs")
-
         self.assertAlmostEqual(#Vehicle one goes 1-2-3-1
                           ((circle_model_2vehs.a[2,0,0,1,2,1,0].X +
                             circle_model_2vehs.a[0,0,0,1,3,2,0].X) or
@@ -539,7 +586,7 @@ class TestCVRP(unittest.TestCase):
                            (circle_model_2vehs.a[0,0,0,1,2,2,0].X +
                             circle_model_2vehs.a[2,0,0,1,3,1,0].X) +
 
-                            # vehicle 2 gos 1-4-5-1
+                            # vehicle 2 goes 1-4-5-1
                            (circle_model_2vehs.a[2,0,0,1,5,1,1].X +
                             circle_model_2vehs.a[0,0,0,1,4,2,1].X) or
                             # Vehicle 2 goes 1-5-4-1
@@ -562,6 +609,20 @@ class TestCVRP(unittest.TestCase):
                            (circle_model_2vehs.a[0,0,0,1,5,2,0].X +
                             circle_model_2vehs.a[2,0,0,1,4,1,0].X))
                             ,4)
+        
+
+        fragile_boxes =  get_model(self, "Fragileboxes")
+        # for x, y, z, i, k, t, v in fragile_boxes.a.keys():
+        #     if fragile_boxes.a[x, y, z, i, k, t, v].X > 0.5:
+        #         print(fragile_boxes.a[x, y, z, i, k, t, v])
+        self.assertAlmostEqual(fragile_boxes.a[0,0,0,1,2,1,0].X +
+                               fragile_boxes.a[2,0,0,1,2,1,0].X,
+                               2)
+        
+        one_fragile_box = get_model(self, "OneFragilebox")
+        self.assertAlmostEqual(one_fragile_box.a[0,0,1,1,2,1,0].X +
+                               one_fragile_box.a[0,0,0,2,2,1,0].X,
+                               2)
 
 
 

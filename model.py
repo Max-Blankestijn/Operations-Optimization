@@ -65,6 +65,7 @@ class CVRP():
             self.ypos_lst.append([y for y in self.ypos if y <= self.dimensions["width"] - dims[1]])
             self.zpos_lst.append([z for z in self.zpos if z <= self.dimensions["height"] - dims[2]])
 
+
         # Define time stages and active constraints
         self.stages = [i+1 for i in range(len(nodes))]
         self.constraints = constraints
@@ -216,9 +217,9 @@ class CVRP():
                     self.model.addConstr(
                         gp.quicksum(self.a[x, y, z, i, k, t, v]
                                     for i in self.boxID
-                                    for x in self.xpos
-                                    for y in self.ypos
-                                    for z in self.zpos)
+                                    for x in self.xpos_lst[i-1]
+                                    for y in self.ypos_lst[i-1]
+                                    for z in self.zpos_lst[i-1])
                         ==
                         gp.quicksum(self.demand[i][k] * self.d[l, k, v, t]
                                     for i in self.boxID
@@ -277,25 +278,14 @@ class CVRP():
                         for x in self.xpos_lst[i-1]:
                             for y in self.ypos_lst[i-1]:
                                 for z in self.zpos_lst[i-1][1:]:
-        
-                                    # for value in (
-                                    # (min(x + self.boxes[i][0], x_pp + self.boxes[j][0]) - max(x, x_pp))
-                                    #       for j in self.boxID if z - self.boxes[j][2] in self.zpos
-                                    #                 for l in self.nodes[1:]
-                                    #                 for u in self.nodes[:-1] if u >= t
-                                    #                 for x_pp in self.xpos_lst[j-1] if x - self.boxes[j][0] + 1 <= x_pp <= x + self.boxes[j][0] - 1
-                                    #                 for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[j][1] - 1
-                                    # ):
-                                    #     print(value)
 
                                     self.model.addConstr(
                                         gp.quicksum((min(x + self.boxes[i][0], x_pp + self.boxes[j][0]) - max(x, x_pp)) * \
                                                     (min(y + self.boxes[i][1], y_pp + self.boxes[j][1]) - max(y, y_pp)) * \
                                                     self.a[x_pp, y_pp, z-self.boxes[j][2], j, l, u, v]
-                                                    # for j in self.boxID if z - self.boxes[j][2] >= 0 and z - self.boxes[j][2] in self.zpos
-                                                    for j in self.boxID if z - self.boxes[j][2] in self.zpos
+                                                    for j in self.boxID if z - self.boxes[j][2] >= 0 and z - self.boxes[j][2] in self.zpos
                                                     for l in self.nodes[1:]
-                                                    for u in self.nodes[:-1] if u >= t
+                                                    for u in self.stages[:-1] if u >= t
                                                     for x_pp in self.xpos_lst[j-1] if x - self.boxes[j][0] + 1 <= x_pp <= x + self.boxes[i][0] - 1
                                                     for y_pp in self.ypos_lst[j-1] if y - self.boxes[j][1] + 1 <= y_pp <= y + self.boxes[i][1] - 1
                                         )
@@ -378,7 +368,7 @@ class CVRP():
                             gp.quicksum((self.p[j-1] / (self.boxes[j][0] * self.boxes[j][1])) * self.a[x_pp, y_pp, z_pp, j, l, u, v]
                                         for j in self.boxID
                                         for l in self.nodes[1:]
-                                        for u in self.nodes[:-1]
+                                        for u in self.stages[:-1]
                                         for x_pp in self.xpos_lst[j-1] if x_p - self.boxes[j][0] + 1 <= x_pp <= x_p
                                         for y_pp in self.ypos_lst[j-1] if y_p - self.boxes[j][1] + 1 <= y_pp <= y_p
                                         for z_pp in self.zpos_lst[j-1] if z_p + 1 <= z_pp <= self.dimensions["height"] - self.boxes[j][2]
@@ -399,48 +389,17 @@ if __name__ == "__main__":
     # Make results reproducable for the time being
     np.random.seed(0)
 
-    # Depot (1) and customer nodes (2..., n)
-    nodes = [1, 2, 3, 4]
-
-    # Generate links from each node to each other node with random distances, might need to change to account for depot
-    links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
-
-    # Make it symmetric
-    for i, j in list(links.keys()):
-        if i != j:
-            links[(j, i)] = {"distance": links[(i, j)]["distance"]}
-
-    # Vehicle IDs [0, 1, ...]
-    # vehicles = [0, 1]
 
     # Dimensions of vehicles, identical for each vehicle
-    dimensions = {"length": 12, "width": 8, "height": 8}
 
     # The above can be used for a more complicated situation. Below is some code that overwrites this all and generates a simple problem
-    # Extremely simple test problem
     nodes = [1, 2, 3, 4, 5]
+    vehicles = [0, 1]
+    dimensions = {"length": 12, "width": 8, "height": 8}
+    
 
     # Generate links from each node to each other node with random distances
-    links = {(i, j): {"distance": np.random.randint(10, 50) if i != j else 9999999} for i in nodes for j in nodes}
-
-    # Make it symmetric
-    for i, j in list(links.keys()):
-        if i != j:
-            links[(j, i)] = {"distance": links[(i, j)]["distance"]}
-
-    # links = {(1, 1): {"distance": 9999},
-    #          (1, 2): {"distance": 10},
-    #          (2, 1): {"distance": 10},
-    #          (1, 3): {"distance": 30},
-    #          (3, 1): {"distance": 30},
-    #          (2, 3): {"distance": 15},
-    #          (3, 2): {"distance": 15},
-    #          (2, 2): {"distance": 9999},
-    #          (3, 3): {"distance": 9999}}
-
-    # Vehicle IDs
-    # vehicles = [0, 1]
-    vehicles = [0]
+    links = create_links_from_coordinates({1:(100,100), 2:(102,160), 3:(20,178), 4:(72,35), 5:(152,28)})
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
     Nconstraints = 19
@@ -448,28 +407,20 @@ if __name__ == "__main__":
     print('constraints', constraints)
 
     # Boxes
-    boxes = {1: [2, 3, 4],
-             2: [4, 2, 4],
-             3: [3, 3, 3],
-             4: [6, 2, 3]}
+    boxes = {1: [2,3,4], 2:[4,2,4], 3:[4,3,3], 4:[6,2,3]}
 
     # Customer Demand
     # key = box, keys in subdicts are nodes, values are number of boxes at each node
-    # demand = {1: {2: 3, 3: 0, 4: 3, 5: 4},
-    #           2: {2: 1, 3: 3, 4: 1, 5: 3},
-    #           3: {2: 2, 3: 4, 4: 0, 5: 1},
-    #           4: {2: 4, 3: 2, 4: 0, 5: 1}}
+    demand = {1: {2:3, 3:0, 4:3, 5:4},
+              2: {2:1, 3:3, 4:1, 5:3},
+              3: {2:2, 3:4, 4:0, 5:1},
+              4: {2:4, 3:2, 4:0, 5:1}}
     
-    demand = {1: {2: 2, 3: 1, 4: 2, 5: 0},
-              2: {2: 0, 3: 1, 4: 1, 5: 0},
-              3: {2: 0, 3: 0, 4: 1, 5: 1},
-              4: {2: 1, 3: 0, 4: 0, 5: 1}}
-
     # Reach for removing boxes
     maximum_reach = [[boxes[i][0] for k in nodes[1:]] for i in boxes.keys()]
 
     # Fragility, set to 0 for no boxes on top of this box type, higher value means more load bearing capability
-    sigma = [9999999 for i in boxes.keys()]
+    sigma = [boxes[i][2] for i in boxes.keys()]
 
     # weight of box of type i
     density = 1
@@ -503,11 +454,11 @@ if __name__ == "__main__":
         for x, y, z, i, k, t, v in problem.a.keys():
             if problem.a[x, y, z, i, k, t, v].X > 0.5:
                 if v == 0:
-                    used_boxes1[i].append([x, y, z])
+                    used_boxes1[i].append([x, y, z, k])
                 if v == 1:
-                    used_boxes2[i].append([x, y, z])
+                    used_boxes2[i].append([x, y, z, k])
                 print(f"Box of type {i} in vehicle {v} for customer {k} is at xyz: [{x},{y},{z}] at stage {t}")
 
     # Call the function
     plot_boxes_3d(used_boxes1, boxes, dimensions)
-    # plot_boxes_3d(used_boxes2, boxes, dimensions)
+    plot_boxes_3d(used_boxes2, boxes, dimensions)

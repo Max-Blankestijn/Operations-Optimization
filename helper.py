@@ -18,7 +18,7 @@ def constraintGenerator(active) -> dict:
                    "constraintFour": False,
                    "constraintFive": False,
                    "constraintSixDummy": None,
-                   "constraintSeven": False,
+                #    "constraintSeven": False,
                    "constraintEight": False,
                    "constraintNine": False,
                    "constraintTen": False,
@@ -66,10 +66,11 @@ def plot_boxes_3d(used_boxes, boxes, dimensions):
     colors = ['red', 'green', 'blue', 'cyan', 'magenta', 'orange', 'yellow']
 
     for idx, (boxID, placements) in enumerate(used_boxes.items()):
-        color = colors[idx % len(colors)]
         L, W, H = boxes[boxID]
 
-        for (x, y, z) in placements:
+        for (x, y, z, k) in placements:
+            color = colors[k % len(colors)]
+
             # List of vertices for the rectangular prism
             vertices = [
                 [x, y, z],
