@@ -100,6 +100,7 @@ class CVRP():
         # Auxiliary real variable \(L'_{kv}\) lower bound set to 0 to simulate constraint 19
         self.l_p = self.model.addVars(self.nodes[1:], self.vehicles,
                                       lb=0.0,
+                                      vtype=GRB.INTEGER,
                                       name='l_p')
 
     def ObjectiveFunc(self):
@@ -400,6 +401,7 @@ if __name__ == "__main__":
 
     # Generate links from each node to each other node with random distances
     links = create_links_from_coordinates({1:(100,100), 2:(102,160), 3:(20,178), 4:(72,35), 5:(152,28)})
+    exit
 
     # Active Constraints Dictionary from helper.py constraintGenerator function
     Nconstraints = 19
