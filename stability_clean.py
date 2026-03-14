@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as colors
+import random
+import copy
 from time import time
 
 import csv
@@ -12,13 +14,15 @@ from model import CVRP
 import sys
 
 class StabilityAnalysisOneSyst():
-    def __init__(self,): #initiates the basic case from model.py
+    def __init__(self): #initiates the basic case from model.py
         self.nodes = [1, 2, 3, 4, 5]
         self.vehicles = [0, 1]
         self.dimensions = {"length": 12, "width": 8, "height": 8}
         
         self.links = create_links_from_coordinates({1:(100,100), 2:(102,160), 3:(20,178), 4:(72,35), 5:(152,28)}) # map coordinates
         self.boxes = {1: [2,3,4], 2:[4,2,4], 3:[4,3,3], 4:[6,2,3]} #box dimensions, right?
+
+        self.links = self.randomLinks()
 
         # Customer Demand
         # key = box, keys in subdicts are nodes, values are number of boxes at each node
@@ -38,10 +42,21 @@ class StabilityAnalysisOneSyst():
         self.p = [density * self.boxes[i][0] * self.boxes[i][1] * self.boxes[i][2] for i in self.boxes.keys()]
         self.genConstraints()
 
-    def genConstraints(self, Nconstraints=15):
+    def randomLinks(self, nNodes=None, xlim=300, ylim=300):
+        points = {}
+        node_ids = self.nodes if nNodes is None else list(range(1, nNodes + 1))
+        for node_id in node_ids:
+            newPoint = (random.randint(0, xlim), random.randint(0, ylim))
+            points[node_id] = newPoint
+        return create_links_from_coordinates(points)
+        
+    def randomDemands(self, maxVal=5):
+        pass
+
+    def genConstraints(self, Nconstraints=19):
         # Active Constraints Dictionary from helper.py constraintGenerator function
         self.constraints = constraintGenerator(range(1, Nconstraints+1))
-        print('constraints', self.constraints)
+        #print('constraints', self.constraints)
 
     def optimize(self, printResults=False):
         # Problem Creation
@@ -126,9 +141,9 @@ class StabilityAnalysisOneSyst():
         ax.axis('off')
         return ax
     
-    def link_v_distance(self, step=0.2, noSteps=1):
+    def link_v_distance(self, step=0.2, noSteps=1): #change this to get a graph for a node of distance v total cost
         #steps = np.linspace(1, 1+noSteps*step, num=noSteps)
-        steps = [ step+1 ]
+        steps = [ 1, step+1 ]
         stabilities = []
         for step in steps:
             for (i,j), info in self.links.items():
@@ -138,15 +153,34 @@ class StabilityAnalysisOneSyst():
                     stabilities.append(self.optimize()) #currently this only works with with a single variation
                     info['distance'] /= step
                     self.links[(j,i)]['distance'] /= step                    
-        return stabilities/np.mean(stabilities)
+        return steps, stabilities/np.mean(stabilities)
     
-    def vary_demands(self, step=-0.1, noSteps = 5):
-        steps = np.linspace(1-step*noSteps/2, 1-step*noSteps/2, noSteps)
+    def vary_distance(self, step=0.1, noSteps=5):
+        #steps = np.linspace(1 - step*noSteps/2, 1 + step*noSteps/2, noSteps)
+        steps = np.linspace(1,2,2)
+        costs = []
+        tgtLinks = [(2,1), (1,2)]
+        ogLinks = copy.deepcopy(self.links)
+        for step in steps:
+            self.links = copy.deepcopy(ogLinks)
+            for link in tgtLinks:
+                self.links[link]['distance'] *= step
+                #print(self.links[link]['distance'])
+            costs.append(self.optimize())
+            #print(self.links[link]['distance'])
+            self.links = ogLinks
+            i = 0
+
+        return steps, costs
+    
+    def vary_node_demands(self, step=0.1, noSteps = 5):
+        #steps = np.linspace(1 - step*noSteps/2, 1 + step*noSteps/2, noSteps)
+        steps = [0.75, 1., 1.25, 1.5]
+        print(steps)
         stabilities = [ ]
         ogDemand = self.demand
         i = 0
         for step in steps:
-            i += 1
             stabLine = [ 0 ]
             for node in self.demand:
                 for item in self.demand[node]:
@@ -155,9 +189,35 @@ class StabilityAnalysisOneSyst():
                 stabLine.append(self.optimize())
                 self.demand = ogDemand
             stabilities.append([stabLine])
-            self.status(i, noSteps)
-        return stabilities
+           #self.status(i, noSteps)
+        return steps, stabilities
 
+    def vary_demands(self, start = 0, end=5, noSteps=5):
+        steps = np.linspace(start, end, noSteps)
+        steps = [ 0.2, 0.4, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2 ]
+        costs = [ ]
+        tgtNode = 4
+        ogVal = copy.deepcopy(self.demand)
+        for step in steps:
+            self.demand = copy.deepcopy(ogVal)
+            for item in self.demand[tgtNode]:
+                self.demand[tgtNode][item] = int(self.demand[tgtNode][item] * step)
+            costs.append(self.optimize())
+            self.demand = ogVal
+        return steps, costs
+    
+    def vary_all_demands(self, steps=[1.1]):
+        ogVal = copy.deepcopy(self.demand)
+        costs = []
+        self.demand = copy.deepcopy(ogVal)
+        for step in steps:
+            for tgtNode in self.nodes:
+                for item in self.demand[tgtNode]:
+                    self.demand[tgtNode][item] = int(self.demand[tgtNode][item] * step)
+        costs.append(self.optimize())
+        self.demand = ogVal
+        return costs
+            
     def constraintCost(self, totalN = 19, plot=False):
         costs = []
         for i in range(totalN):
@@ -167,18 +227,13 @@ class StabilityAnalysisOneSyst():
         if (plot):
             self.plotGraph(costs)
         return costs
-        
-    def plotGraph(x, xlabel="x", ylabel="y"): #custom graph plot funct for plot setting consistency 
-        plt.plot(x)
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
     
     def status(done, total):
         print(str(done) + " out of " + str(total) + " done, " + str(done/total * 100) + "%")
 
     def vary_reach(self, step = 2, noSteps = 1):
         #steps = np.linspace(1-step*noSteps/2, 1-step*noSteps/2, noSteps)
-        steps = [ 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.45, 0.5] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
+        steps = [ 0.4, 0.425, 0.45, 0.475, 0.5] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
         costs = []
         for step in steps:
             ogReach = self.maximum_reach
@@ -187,9 +242,9 @@ class StabilityAnalysisOneSyst():
             self.maximum_reach = ogReach
         return steps, costs
     
-    def vary_sigma(self, step = 2, noSteps = 1):
+    def vary_sigma(self, step = 2, noSteps = 1, reachability=1, demand=1):
         #steps = np.linspace(1-step*noSteps/2, 1-step*noSteps/2, noSteps)
-        steps = [ 1, 2, 3 ] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
+        steps = [ 0.99, 1 ] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
         costs = []
         for step in steps:
             ogSigma = self.sigma
@@ -198,14 +253,41 @@ class StabilityAnalysisOneSyst():
             self.sigma = ogSigma
         return costs
 
+    def bisect(self, fun, up=10, lo=0, tgt=0.1):
+        upInit = fun(self, up)
+        loInit = fun(self, lo)
+        while(up-lo > tgt):
+            value = fun(self, (up+lo)/2)
+            #if value ==
+    
+    def multiVehicle(self):
+        options = [[0,1], [0,1,2], [0,1,2,3]]
+        Ns = [1,2,3]
+        costs = []
+        for opt in options:
+            self.vehicles = opt
+            costs.append(self.optimize())
+        return Ns, costs
+        
+def marg(costs):
+    margs = [ costs[0] ]
+    for i in range(len(costs)-1):
+        margs.append(costs[i+1] - costs[i])
+    return margs
 
 if __name__ == "__main__":
     start_time = time()
     sys = StabilityAnalysisOneSyst()
-    #costs = sys.vary_demands()
-    steps, costs = sys.vary_reach()
-    #sys.plot_network(nodeDeltas=costs)
-    print(costs)
+    #steps, costs = sys.vary_demands()
+    #costs = np.zeros(5)
+    #steps, costs = sys.link_v_distance()
+    #steps, costs = sys.vary_demands()
+    #sys.plot_network()
+    #print(steps)
+    #print(costs)
+    #print(marg(costs))
+    print(sys.vary_sigma(reachability=0.5, demand = 0.5))
     print("Run time: " + str(time() - start_time))
-    plt.plot(steps, costs)
+    #plt.plot(steps, costs)
+    #plt.plot(steps, marg(costs))
     plt.show()
