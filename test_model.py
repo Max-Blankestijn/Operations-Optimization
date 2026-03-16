@@ -82,7 +82,7 @@ class TestCVRP(unittest.TestCase):
              "boxes": {1: [2,2,2]}
              },
 
-            #Same case as before, but with additional box at node 3, only 2 logical ways of packing
+            # #Same case as before, but with additional box at node 3, only 2 logical ways of packing
              {"name": "CircleRoute_1veh2box", "node_amount": 5, "vehicle_amount": 1, "box_amount": 1,
              "demand": {1: {2:1, 3:1, 4:1, 5:1},
                         2: {2:0, 3:1, 4:0, 5:0}}, 
@@ -119,7 +119,7 @@ class TestCVRP(unittest.TestCase):
               "demand": {1: {2:1}, 2: {2:1}}, "sigma": [0, 9999],
               "vehicle_size":  {"length":2, "width": 2, "height": 3},
               "boxes": {1: [2,2,2],
-                        2: [2,2,1]}}
+                        2: [2,2,1]}},
 
 
             # Paper case, these are cases that are defined in the paper, verified with visual inspection of the loading
@@ -514,72 +514,72 @@ class TestCVRP(unittest.TestCase):
     
     def test_obvious_solutions(self):
         circle_model = get_model(self, "CircleRoute_1veh")
-        self.assertAlmostEqual(# Vehicle goes 1-2-3-4-5-1
+        self.assertTrue(# Vehicle goes 1-2-3-4-5-1
                                (circle_model.a[6, 0, 0, 1, 2, 1, 0].X +
                                 circle_model.a[4, 0, 0, 1, 3, 2, 0].X +
                                 circle_model.a[2, 0, 0, 1, 4, 3, 0].X +
-                                circle_model.a[0, 0, 0, 1, 5, 4, 0].X) or
+                                circle_model.a[0, 0, 0, 1, 5, 4, 0].X == 4) or
 
                                # Vehicle goes 1-5-4-3-2-1
                                (circle_model.a[6, 0, 0, 1, 5, 1, 0].X +
                                 circle_model.a[4, 0, 0, 1, 4, 2, 0].X +
                                 circle_model.a[2, 0, 0, 1, 3, 3, 0].X +
-                                circle_model.a[0, 0, 0, 1, 2, 4, 0].X),                              
-                                  4)
+                                circle_model.a[0, 0, 0, 1, 2, 4, 0].X == 4))
         
         circle_model_2box = get_model(self, "CircleRoute_1veh2box")
 
-        self.assertAlmostEqual(# 1 - 2 - 3 - 4 - 5 - small box in front
-                               (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
+        for x, y, z, i, k, t, v in circle_model_2box.a.keys():
+            if circle_model_2box.a[x, y, z, i, k, t, v].X > 0.5:
+                print(circle_model_2box.a[x, y, z, i, k, t, v])
+        self.assertTrue(# 1 - 2 - 3 - 4 - 5 - small box in front
+                               ((circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
                                 circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
                                 circle_model_2box.a[3, 0, 0, 1, 3, 3, 0].X + 
                                 circle_model_2box.a[2, 0, 0, 2, 3, 3, 0].X + 
-                                # 1 - 2 - 3 - 4 - 5 - small box behind
-                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or 
+                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) == 5 or 
+                                # 1 - 2 - 3 - 4 - 5 - small box bind
                                (circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
                                 circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +
                                 circle_model_2box.a[1, 0, 0, 1, 3, 3, 0].X + 
                                 circle_model_2box.a[3, 0, 0, 2, 3, 3, 0].X + 
-                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) or
+                                circle_model_2box.a[0, 0, 0, 1, 2, 4, 0].X) == 5) or
                                 # 5 - 4 - 3 - 2 - 1 - small box behind
-                               (circle_model_2box.a[0, 0, 0, 1, 5, 4, 0].X +
+                               ((circle_model_2box.a[0, 0, 0, 1, 5, 4, 0].X +
                                 circle_model_2box.a[2, 0, 0, 1, 4, 3, 0].X +
                                 circle_model_2box.a[4, 0, 0, 2, 3, 2, 0].X + 
                                 circle_model_2box.a[5, 0, 0, 1, 3, 2, 0].X + 
-                                circle_model_2box.a[7, 0, 0, 1, 2, 1, 0].X) or 
+                                circle_model_2box.a[7, 0, 0, 1, 2, 1, 0].X == 5) or 
                                 # 5 - 4 - 3 - 2 - 1 - small box in front
                                (circle_model_2box.a[0, 0, 0, 1, 5, 4, 0].X +
                                 circle_model_2box.a[2, 0, 0, 1, 4, 3, 0].X +
                                 circle_model_2box.a[4, 0, 0, 1, 3, 2, 0].X + 
                                 circle_model_2box.a[6, 0, 0, 2, 3, 2, 0].X + 
-                                circle_model_2box.a[7, 0, 0, 1, 2, 1, 0].X) , 5)
-
+                                circle_model_2box.a[7, 0, 0, 1, 2, 1, 0].X) == 5))
+        
         circle_model_2veh =  get_model(self, "CircleRoute_2veh")
-        self.assertAlmostEqual(# Vehicle 1 goes 1-2-3-4-5-1
+        self.assertTrue(# Vehicle 1 goes 1-2-3-4-5-1
                                (circle_model_2veh.a[6, 0, 0, 1, 2, 1, 0].X +
                                 circle_model_2veh.a[4, 0, 0, 1, 3, 2, 0].X +
                                 circle_model_2veh.a[2, 0, 0, 1, 4, 3, 0].X +
-                                circle_model_2veh.a[0, 0, 0, 1, 5, 4, 0].X) or 
+                                circle_model_2veh.a[0, 0, 0, 1, 5, 4, 0].X == 4) or 
                                 # Vehicle 1 goes 1-5-4-3-2-1
                                (circle_model_2veh.a[6, 0, 0, 1, 5, 1, 0].X +
                                 circle_model_2veh.a[4, 0, 0, 1, 4, 2, 0].X +
                                 circle_model_2veh.a[2, 0, 0, 1, 3, 3, 0].X +
-                                circle_model_2veh.a[0, 0, 0, 1, 2, 4, 0].X) or
+                                circle_model_2veh.a[0, 0, 0, 1, 2, 4, 0].X == 4) or
                                 # Vehicle 2 goes 1-2-3-4-5-1
                                (circle_model_2veh.a[6, 0, 0, 1, 2, 1, 1].X +
                                 circle_model_2veh.a[4, 0, 0, 1, 3, 2, 1].X +
                                 circle_model_2veh.a[2, 0, 0, 1, 4, 3, 1].X +
-                                circle_model_2veh.a[0, 0, 0, 1, 5, 4, 1].X) or 
+                                circle_model_2veh.a[0, 0, 0, 1, 5, 4, 1].X == 4) or 
                                 # Vehicle 2 goes 1-5-4-3-2-1
                                (circle_model_2veh.a[6, 0, 0, 1, 5, 1, 1].X +
                                 circle_model_2veh.a[4, 0, 0, 1, 4, 2, 1].X +
                                 circle_model_2veh.a[2, 0, 0, 1, 3, 3, 1].X +
-                                circle_model_2veh.a[0, 0, 0, 1, 2, 4, 1].X)
-                                
-                                , 4)
+                                circle_model_2veh.a[0, 0, 0, 1, 2, 4, 1].X == 4))
         
         circle_model_2vehs =  get_model(self, "CircleRoute_2vehs")
-        self.assertAlmostEqual(#Vehicle one goes 1-2-3-1
+        self.assertTrue(#Vehicle one goes 1-2-3-1
                           ((circle_model_2vehs.a[2,0,0,1,2,1,0].X +
                             circle_model_2vehs.a[0,0,0,1,3,2,0].X) or
                             # Vehicle 1 goes 1-3-2-1
@@ -591,7 +591,7 @@ class TestCVRP(unittest.TestCase):
                             circle_model_2vehs.a[0,0,0,1,4,2,1].X) or
                             # Vehicle 2 goes 1-5-4-1
                            (circle_model_2vehs.a[0,0,0,1,5,2,1].X +
-                            circle_model_2vehs.a[2,0,0,1,4,1,1].X)) 
+                            circle_model_2vehs.a[2,0,0,1,4,1,1].X) == 4) 
                             
                             or
 
@@ -607,8 +607,7 @@ class TestCVRP(unittest.TestCase):
                             circle_model_2vehs.a[0,0,0,1,4,2,0].X) or
                             # Vehicle 1 goes 1-5-4-1
                            (circle_model_2vehs.a[0,0,0,1,5,2,0].X +
-                            circle_model_2vehs.a[2,0,0,1,4,1,0].X))
-                            ,4)
+                            circle_model_2vehs.a[2,0,0,1,4,1,0].X) == 4))
         
 
         fragile_boxes =  get_model(self, "Fragileboxes")
