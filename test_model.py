@@ -528,9 +528,6 @@ class TestCVRP(unittest.TestCase):
         
         circle_model_2box = get_model(self, "CircleRoute_1veh2box")
 
-        for x, y, z, i, k, t, v in circle_model_2box.a.keys():
-            if circle_model_2box.a[x, y, z, i, k, t, v].X > 0.5:
-                print(circle_model_2box.a[x, y, z, i, k, t, v])
         self.assertTrue(# 1 - 2 - 3 - 4 - 5 - small box in front
                                ((circle_model_2box.a[7, 0, 0, 1, 5, 1, 0].X +
                                 circle_model_2box.a[5, 0, 0, 1, 4, 2, 0].X +

@@ -107,7 +107,7 @@ def plot_boxes_3d(used_boxes, boxes, dimensions):
     ax.set_ylim(0, max(dimensions["width"], dimensions["width"]))
     ax.set_zlim(0, max(dimensions["height"], dimensions["height"]))
 
-    ax.set_title("3D Loaded Vehicle Visualization")
+    # ax.set_title("3D Loaded Vehicle Visualization")
     plt.tight_layout()
     plt.show()
 
