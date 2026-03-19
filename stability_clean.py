@@ -6,7 +6,6 @@ import random
 import copy
 from time import time
 
-import csv
 import gurobipy as gp
 from gurobipy import GRB
 from helper import *
@@ -50,8 +49,12 @@ class StabilityAnalysisOneSyst():
             points[node_id] = newPoint
         return create_links_from_coordinates(points)
         
-    def randomDemands(self, maxVal=5):
-        pass
+    def randomDemands(self, rangeBox = [1,4]):
+        for nodeOut in self.nodes:
+            if nodeOut != self.nodes[-1]:
+                for nodeIn in self.nodes:
+                    if nodeIn != self.nodes[0]:
+                        self.demand[nodeOut][nodeIn] = random.randint(rangeBox[0], rangeBox[1])
 
     def genConstraints(self, Nconstraints=19):
         # Active Constraints Dictionary from helper.py constraintGenerator function
@@ -68,12 +71,12 @@ class StabilityAnalysisOneSyst():
         problem.model.optimize()
         print("Finished optimization")
 
-        used_boxes1 = {1: [],
+        self.used_boxes1 = {1: [],
                     2: [],
                     3: [],
                     4: []}
 
-        used_boxes2 = {1: [],
+        self.used_boxes2 = {1: [],
                     2: [],
                     3: [],
                     4: []}
@@ -87,12 +90,12 @@ class StabilityAnalysisOneSyst():
                 for x, y, z, i, k, t, v in problem.a.keys():
                     if problem.a[x, y, z, i, k, t, v].X > 0.5:
                         if v == 0:
-                            used_boxes1[i].append([x, y, z, k])
+                            self.used_boxes1[i].append([x, y, z, k])
                         if v == 1:
-                            used_boxes2[i].append([x, y, z, k])
+                            self.used_boxes2[i].append([x, y, z, k])
                         print(f"Box of type {i} in vehicle {v} for customer {k} is at xyz: [{x},{y},{z}] at stage {t}")
-            plot_boxes_3d(used_boxes1, self.boxes, self.dimensions)
-            plot_boxes_3d(used_boxes2, self.boxes, self.dimensions)
+            plot_boxes_3d(self.used_boxes1, self.boxes, self.dimensions)
+            plot_boxes_3d(self.used_boxes2, self.boxes, self.dimensions)
         if (problem.model.SolCount > 0):
             return problem.model.ObjVal
         return -1
@@ -194,7 +197,7 @@ class StabilityAnalysisOneSyst():
 
     def vary_demands(self, start = 0, end=5, noSteps=5):
         steps = np.linspace(start, end, noSteps)
-        steps = [ 0.2, 0.4, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2 ]
+        steps = [ 0.2, 0.4, 0.6, 0.8, 1]
         costs = [ ]
         tgtNode = 4
         ogVal = copy.deepcopy(self.demand)
@@ -220,21 +223,25 @@ class StabilityAnalysisOneSyst():
             
     def constraintCost(self, totalN = 19, plot=False):
         costs = []
+        steps = np.zeros([1,19])
         for i in range(totalN):
             self.genConstraints(i)
             print(i)
             costs.append(self.optimize())
         if (plot):
             self.plotGraph(costs)
-        return costs
+        return steps, costs
     
     def status(done, total):
         print(str(done) + " out of " + str(total) + " done, " + str(done/total * 100) + "%")
 
-    def vary_reach(self, step = 2, noSteps = 1):
+    def vary_reach(self, step = 2, noSteps = 1, demand = 0.5):
         #steps = np.linspace(1-step*noSteps/2, 1-step*noSteps/2, noSteps)
-        steps = [ 0.4, 0.425, 0.45, 0.475, 0.5] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
+        steps = [ 0.2, 0.4, 0.6, 0.8] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
         costs = []
+        for tgtNode in self.demand:
+            for item in self.demand[tgtNode]:
+                self.demand[tgtNode][item] = int(self.demand[tgtNode][item] * demand)       
         for step in steps:
             ogReach = self.maximum_reach
             self.maximum_reach = [[self.boxes[i][0]*step for k in self.nodes[1:]] for i in self.boxes.keys()]
@@ -242,16 +249,32 @@ class StabilityAnalysisOneSyst():
             self.maximum_reach = ogReach
         return steps, costs
     
-    def vary_sigma(self, step = 2, noSteps = 1, reachability=1, demand=1):
+    def vary_sigma(self, step = 2, noSteps = 1, reachability=1, demand=0.2):
         #steps = np.linspace(1-step*noSteps/2, 1-step*noSteps/2, noSteps)
-        steps = [ 0.99, 1 ] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
+        steps = [ 2] #the way to actually do this is go from 1 to such that maximum would reach across the full vehicle, right?
         costs = []
+        if (reachability != 1 or demand != 1):
+            ogDemand = self.demand
+            self.demand = copy.deepcopy(ogDemand)
+            ogReach = self.maximum_reach
+            self.maximum_reach = copy.deepcopy(ogReach)
+            self.maximum_reach = [[self.boxes[i][0]*reachability for k in self.nodes[1:]] for i in self.boxes.keys()]
+            for tgtNode in self.demand:
+                for item in self.demand[tgtNode]:
+                    self.demand[tgtNode][item] = int(self.demand[tgtNode][item] * demand)      
+                    print(self.demand[tgtNode][item])  
         for step in steps:
             ogSigma = self.sigma
             self.sigma = [self.boxes[i][2]*step for i in self.boxes.keys()]
             costs.append(self.optimize())
             self.sigma = ogSigma
-        return costs
+            #plot_boxes_3d(self.used_boxes1, self.boxes, self.dimensions)
+            #plot_boxes_3d(self.used_boxes2, self.boxes, self.dimensions)
+        
+        if (reachability != 1 and demand != 1):
+            self.demand = copy.deepcopy(ogDemand)
+            self.maximum_reach = copy.deepcopy(ogReach)
+        return steps, costs
 
     def bisect(self, fun, up=10, lo=0, tgt=0.1):
         upInit = fun(self, up)
@@ -260,14 +283,30 @@ class StabilityAnalysisOneSyst():
             value = fun(self, (up+lo)/2)
             #if value ==
     
-    def multiVehicle(self):
-        options = [[0,1], [0,1,2], [0,1,2,3]]
+    def multiVehicle(self, demand=0.2):
+        if (demand != 1):
+            ogDemand = self.demand
+            self.demand = copy.deepcopy(ogDemand)            
+        options = [[0], [0,1], [0,1,2], [0,1,2,3]]
         Ns = [1,2,3]
         costs = []
         for opt in options:
             self.vehicles = opt
             costs.append(self.optimize())
         return Ns, costs
+    
+    def addNodes(self, nMin = 1, nMax=5):
+        self.nodes = []
+        costs = []
+        steps = []
+        for i in range(nMin - 1):
+            self.nodes.append(i)
+        for i in range(nMin, nMax):
+            self.nodes.append(i)
+            self.randomLinks()
+            costs.append(self.optimize())
+            steps.append[i]
+        return steps, costs    
         
 def marg(costs):
     margs = [ costs[0] ]
@@ -277,17 +316,22 @@ def marg(costs):
 
 if __name__ == "__main__":
     start_time = time()
-    sys = StabilityAnalysisOneSyst()
-    #steps, costs = sys.vary_demands()
-    #costs = np.zeros(5)
-    #steps, costs = sys.link_v_distance()
-    #steps, costs = sys.vary_demands()
-    #sys.plot_network()
-    #print(steps)
-    #print(costs)
+    Nruns = 10
+    totCosts = []
+    totSteps = []
+    for i in range(Nruns):
+        sys = StabilityAnalysisOneSyst()
+        #sys.randomDemands()
+        steps, costs = sys.constraintCost()
+        #steps, costs = sys.vary_demands()
+        totSteps.append(steps)
+        totCosts.append(costs)
+        #sys.randomDemands()
+    print(totSteps)
+    print(totCosts)
     #print(marg(costs))
-    print(sys.vary_sigma(reachability=0.5, demand = 0.5))
+    #print(sys.vary_sigma(reachability=0.5, demand = 0.5))
     print("Run time: " + str(time() - start_time))
-    #plt.plot(steps, costs)
+    plt.plot(steps, costs)
     #plt.plot(steps, marg(costs))
     plt.show()
